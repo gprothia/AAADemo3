@@ -10,7 +10,7 @@ for help (tow, battery, flat tyre, lockout, fuel); dispatchers move each request
 ## The cycle
 
 ```
-feature request (GitHub issue, plain language)  or  a vibe-coded prototype
+feature request (GitHub issue, plain language), optionally linking a vibe-coded prototype
   → enterprise spec (specs/*.md, approved by a person)   /write-spec #<issue>
   → tests → code → style checks → local run
   → GKE sandbox: app as pods, ALL tests run (new + regression)
@@ -47,6 +47,19 @@ A feature request says **what someone wants and why**, in plain words. It is not
 - Title `[Request] <plain description>`, label `request`.
 - Agents: draft to `.tmp/feature-request.md`, show the user, then
   `gh issue create --title ... --label request --body-file .tmp/feature-request.md`.
+
+## 1b. Prototypes (vibe-coded by business users)
+
+A prototype shows an idea quickly. It is evidence of what people want, not a design to ship.
+- Static HTML/CSS/JS only, with **fake data**: no backend calls, no secrets, no real personal data.
+- Lives on its own branch `proto/<name>`, under `prototypes/<name>/` (`index.html`, plus a
+  `README.md` saying the idea in plain words). A feature request links to it.
+- It reaches `main` only together with the spec reverse-engineered from it, as a reference.
+- Never built into images, deployed, or imported by `services/` or `tests/` (CI checks this).
+- Reverse-engineering (`/write-spec`): every screen becomes behaviour, every field becomes
+  data (personal or not), every button becomes an action with a role and an audit question.
+  What the prototype does that a standard forbids or doesn't cover becomes an **open
+  question**, never a silent copy.
 
 ## 2. Specs
 

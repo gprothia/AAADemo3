@@ -38,6 +38,12 @@ jobs:
         run: python scripts/check_spec.py
       - name: Every approved criterion has a test
         run: python scripts/check_traceability.py
+      - name: Prototypes are never built, deployed or imported
+        run: |
+          if grep -rn "prototypes/" services tests deploy; then
+            echo "::error::services/, tests/ and deploy/ must not use anything under prototypes/ (AGENTS.md 1b)"
+            exit 1
+          fi
 
   # 1b) Code style and safety checks (standards/code-style.md). Blocks the merge on failure.
   style:
