@@ -193,6 +193,21 @@ jobs:
           kubectl -n "$NS" cp test-runner:/reports ./reports -c results || echo "no reports"
           { kubectl -n "$NS" get pods -o wide; kubectl -n "$NS" get events --sort-by=.metadata.creationTimestamp; } > reports/k8s-state.txt || true
 
+      - name: Write the PR check summary (same table as the pre-PR evidence)
+        if: always()
+        env:
+          SANDBOX_LABEL: PR check
+        run: |
+          python3 scripts/sandbox_report.py reports "$NS" "$SHA" "${TEST_EXIT:-1}" "$SHA" "$GITHUB_HEAD_REF"
+          cat reports/summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Post the PR check result on the PR (updated in place on every push)
+        if: always()
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: gke-pr-check
+          path: reports/summary.md
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
