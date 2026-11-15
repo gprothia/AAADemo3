@@ -41,7 +41,8 @@ specs and plans where they decide something.
 
 A feature request says **what someone wants and why**, in plain words. It is not a spec.
 - Use the "Feature request" form's sections (`.github/ISSUE_TEMPLATE/feature-request.yml`):
-  `### Why`, `### Who`, `### What they want`, `### Example`, `### Open questions`.
+  `### Why`, `### Who`, `### What they want`, `### Example`, `### Prototype (optional)`,
+  `### Open questions`.
 - No Given/When/Then, no rule IDs, no status codes. Those belong in the spec.
 - Title `[Request] <plain description>`, label `request`.
 - Agents: draft to `.tmp/feature-request.md`, show the user, then
