@@ -1,7 +1,7 @@
 ---
 id: RSA-004
 title: Live Track My Rescue
-status: approved
+status: implemented
 owner: "@gprothia"
 issue: "#4"
 ---
