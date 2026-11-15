@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Track my rescue (prototype)</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Roboto, Arial, sans-serif; background: #F1F4F9; color: #1B2533; }
+  header { background: #0B3D91; color: #fff; padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
+  header .brand { font-weight: 700; font-size: 18px; }
+  header .tag { margin-left: auto; font-size: 12px; background: #FFD34E; color: #3B2A00; padding: 4px 10px; border-radius: 12px; font-weight: 600; }
+  main { max-width: 720px; margin: 24px auto; padding: 0 16px; display: grid; gap: 16px; }
+  .card { background: #fff; border-radius: 16px; padding: 24px; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+  .hero { display: flex; align-items: center; gap: 24px; }
+  .eta { font-size: 64px; font-weight: 700; color: #0B3D91; line-height: 1; }
+  .eta small { font-size: 20px; font-weight: 500; }
+  .hero h1 { margin: 0 0 6px; font-size: 24px; }
+  .muted { color: #5B6675; font-size: 14px; }
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
+  .step { text-align: center; font-size: 13px; color: #5B6675; }
+  .step .dot { width: 28px; height: 28px; border-radius: 50%; margin: 0 auto 6px; background: #D5DCE6; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; }
+  .step.done .dot { background: #1E8E3E; }
+  .step.now .dot { background: #0B3D91; box-shadow: 0 0 0 6px rgba(11,61,145,.15); }
+  .step.now { color: #0B3D91; font-weight: 600; }
+  .map { height: 220px; border-radius: 12px; background: #E6EEF7; position: relative; overflow: hidden; }
+  .driver { display: flex; align-items: center; gap: 16px; }
+  .avatar { width: 56px; height: 56px; border-radius: 50%; background: #0B3D91; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; }
+  .driver h2 { margin: 0; font-size: 18px; }
+  .actions { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+  button { border: 0; border-radius: 10px; padding: 12px 18px; font-size: 15px; cursor: pointer; font-weight: 600; }
+  .primary { background: #0B3D91; color: #fff; }
+  .secondary { background: #E8EEF8; color: #0B3D91; }
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: none; align-items: center; justify-content: center; }
+  .modal { background: #fff; border-radius: 16px; padding: 24px; width: min(440px, 92vw); }
+  .link { font-family: monospace; background: #F1F4F9; padding: 10px; border-radius: 8px; margin: 12px 0; word-break: break-all; }
+  footer { text-align: center; font-size: 12px; color: #5B6675; margin: 24px; }
+</style>
+</head>
+<body>
+<header>
+  <span class="brand">Roadside Assistance</span>
+  <span>Track my rescue</span>
+  <span class="tag">PROTOTYPE · fake data</span>
+</header>
+
+<main>
+  <section class="card hero" aria-label="Arrival">
+    <div class="eta" id="eta">18<small> min</small></div>
+    <div>
+      <h1>Your rescue is on the way</h1>
+      <p class="muted">Request RSA-2041 · Tow · I-80 westbound, mile 31</p>
+      <p class="muted" id="updated">Updated just now · refreshes every 5 seconds</p>
+    </div>
+  </section>
+
+  <section class="card" aria-label="Progress">
+    <div class="steps">
+      <div class="step done"><div class="dot">✓</div>Received</div>
+      <div class="step done"><div class="dot">✓</div>Truck assigned</div>
+      <div class="step now"><div class="dot">3</div>On the way</div>
+      <div class="step"><div class="dot">4</div>Arrived</div>
+    </div>
+  </section>
+
+  <section class="card" aria-label="Map">
+    <div class="map">
+      <svg viewBox="0 0 680 220" width="100%" height="100%" aria-label="Truck on its way">
+        <path id="road" d="M40 180 C 180 40, 320 200, 460 90 S 620 60, 640 40" fill="none" stroke="#9FB3CC" stroke-width="10" stroke-linecap="round"/>
+        <circle cx="640" cy="40" r="12" fill="#C5221F"/>
+        <text x="600" y="24" font-size="13" fill="#1B2533">You</text>
+        <circle id="truck" r="11" fill="#0B3D91" stroke="#fff" stroke-width="3">
+          <animateMotion dur="40s" repeatCount="indefinite"><mpath href="#road"/></animateMotion>
+        </circle>
+      </svg>
+    </div>
+    <p class="muted">Truck 7 · live location</p>
+  </section>
+
+  <section class="card" aria-label="Driver">
+    <div class="driver">
+      <div class="avatar">M</div>
+      <div>
+        <h2>Maria Lopez · Truck 7</h2>
+        <p class="muted">★ 4.9 · 1,240 rescues · +1 555 010 7788</p>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="primary" onclick="alert('Calling Maria at +1 555 010 7788…')">Call driver</button>
+      <button class="secondary" onclick="share()">Share with family</button>
+      <button class="secondary" onclick="alert('Request cancelled (prototype)')">Cancel request</button>
+    </div>
+  </section>
+</main>
+
+<div class="modal-bg" id="shareModal" onclick="if (event.target === this) this.style.display='none'">
+  <div class="modal" role="dialog" aria-label="Share with family">
+    <h2>Share your rescue</h2>
+    <p class="muted">Anyone with this link can follow the truck live. No sign-in needed.</p>
+    <div class="link">https://roadside.example/t/8f3k2q</div>
+    <button class="primary" onclick="document.getElementById('shareModal').style.display='none'">Copy link</button>
+  </div>
+</div>
+
+<footer>Prototype by Marketing · fake data · not connected to any system</footer>
+
+<script>
+  // Fake countdown so the page feels alive.
+  let eta = 18;
+  setInterval(() => {
+    eta = Math.max(1, eta - 1);
+    document.getElementById('eta').innerHTML = eta + '<small> min</small>';
+    document.getElementById('updated').textContent = 'Updated just now · refreshes every 5 seconds';
+  }, 5000);
+  function share() { document.getElementById('shareModal').style.display = 'flex'; }
+</script>
+</body>
+</html>
