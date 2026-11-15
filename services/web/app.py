@@ -359,7 +359,7 @@ def _live_tracking_html(r: dict, user: dict) -> str:
     <button type="button" class="btn-secondary" id="shareLinkBtn">Share Live Link</button>
     {cancel_btn}
   </div>
-  <div id="shareToast" class="toast-msg" role="status" aria-live="polite"></div>
+  <div id="shareToast" class="toast-msg" aria-live="polite"></div>
 </div>
 <dialog id="callDialog"><h3>Calling {d_name}</h3><p>Phone: <strong>{d_phone}</strong></p>
   <button type="button" id="closeCallBtn">Close</button></dialog>
@@ -382,6 +382,7 @@ def _live_tracking_html(r: dict, user: dict) -> str:
     if (navigator.clipboard && navigator.clipboard.writeText) {{
       navigator.clipboard.writeText(window.location.href).catch(() => {{}});
     }}
+    shareToast.setAttribute("role", "status");
     shareToast.textContent = "Live tracking link copied! Sign-in is required to view.";
   }});
   const openCancel = document.getElementById("openCancelBtn");
