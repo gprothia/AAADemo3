@@ -18,7 +18,9 @@ PROTECTED = [
 @pytest.mark.ac("STD-001-AC1")
 @pytest.mark.parametrize(("method", "path"), PROTECTED)
 def test_every_v1_endpoint_requires_sign_in(api, method, path):
-    r = api.request(method, path, json={})
+    # Only POST/PATCH carry a body: Cloud Run's front end rejects a GET with a body (400).
+    body = {} if method in ("POST", "PATCH") else None
+    r = api.request(method, path, json=body)
     assert r.status_code == 401
     assert r.json()["code"] == "UNAUTHENTICATED"
 
