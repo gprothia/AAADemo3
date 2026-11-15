@@ -52,8 +52,8 @@ app = FastAPI(title="Roadside Assistance API", version="1.0.0")
 # --------------------------------------------------------------------------- logging
 
 request_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("request_id", default="-")
-# Phone-shaped values: "+1 555 010 2233", "555-010-2233", "5550102233". Not dates or IDs.
-PHONE = re.compile(r"\+\d[\d\s-]{8,}\d|\b\d{3}[\s-]?\d{3}[\s-]?\d{4}\b")
+# Phone-shaped values: "+1 555 010 2233", "(555) 014-8392", "555-010-2233", "5550102233". Not dates or IDs.
+PHONE = re.compile(r"\+\d[\d\s-]{8,}\d|(?:\(\d{3}\)|\b\d{3})[\s-]?\d{3}[\s-]?\d{4}\b")
 RECENT_LOGS: deque[dict] = deque(maxlen=200)  # exposed only through a test hook
 
 log = logging.getLogger("roadside")
@@ -73,7 +73,10 @@ def _scrub(value):
     if isinstance(value, str):
         return PHONE.sub(lambda m: mask(m.group(0)), value)
     if isinstance(value, dict):
-        return {k: (mask(v) if k == "phone" and isinstance(v, str) else _scrub(v)) for k, v in value.items()}
+        return {
+            k: (mask(v) if k in ("phone", "driver_phone") and isinstance(v, str) else _scrub(v))
+            for k, v in value.items()
+        }
     if isinstance(value, list):
         return [_scrub(v) for v in value]
     return value
@@ -287,6 +290,10 @@ def seed() -> None:
         "status": "assigned",
         "eta_minutes": 25,
         "driver": "Sam (Truck 12)",
+        "driver_name": "Sam",
+        "driver_truck": "Truck 12",
+        "driver_rating": 4.8,
+        "driver_phone": "(555) 010-1212",
         "history": [{"status": "received", "at": now()}, {"status": "assigned", "at": now()}],
         "created_at": now(),
     }
@@ -337,6 +344,10 @@ def create_request(body: HelpRequestIn, user: dict = Depends(require("member")))
         "status": "received",
         "eta_minutes": None,
         "driver": None,
+        "driver_name": None,
+        "driver_truck": None,
+        "driver_rating": None,
+        "driver_phone": None,
         "history": [{"status": "received", "at": now()}],
         "created_at": now(),
     }
@@ -369,6 +380,10 @@ class UpdateIn(BaseModel):
     status: str | None = None
     eta_minutes: int | None = Field(default=None, ge=0, le=600)
     driver: str | None = Field(default=None, max_length=80)
+    driver_name: str | None = Field(default=None, max_length=80)
+    driver_truck: str | None = Field(default=None, max_length=120)
+    driver_rating: float | None = Field(default=None, ge=1.0, le=5.0)
+    driver_phone: str | None = Field(default=None, max_length=30)
 
 
 @app.patch("/v1/requests/{request_id}")
@@ -384,6 +399,26 @@ def update_request(request_id: str, body: UpdateIn, user: dict = Depends(require
         r["history"].append({"status": new, "at": now()})
     r.update(changes)
     audit("request.updated", actor=user["sub"], target=request_id, changes=changes)
+    return r
+
+
+# --------------------------------------------------------------------------- RSA-004 member cancel
+
+
+CANCELLABLE_STATUSES = {"received", "assigned", "en_route"}
+
+
+@app.post("/v1/requests/{request_id}/cancel")
+def cancel_request(request_id: str, user: dict = Depends(require("member"))):
+    r = REQUESTS.get(request_id)
+    if not r or r["member"] != user["sub"]:
+        raise ApiError(404, "REQUEST_NOT_FOUND", "Request not found")
+    if r["status"] not in CANCELLABLE_STATUSES:
+        raise ApiError(409, "INVALID_TRANSITION", f"Cannot cancel request in status {r['status']}")
+    prev = r["status"]
+    r["status"] = "cancelled"
+    r["history"].append({"status": "cancelled", "at": now()})
+    audit("request.cancelled", actor=user["sub"], target=request_id, previous_status=prev)
     return r
 
 

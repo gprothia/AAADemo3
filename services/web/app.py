@@ -63,8 +63,16 @@ STATUS_LABEL = {
     "en_route": "On the way",
     "arrived": "Arrived",
     "completed": "Completed",
+    "cancelled": "Cancelled",
 }
 NEXT_STATUS = {"received": "assigned", "assigned": "en_route", "en_route": "arrived", "arrived": "completed"}
+TRACKER_STEPS = [
+    ("received", "Received"),
+    ("assigned", "Truck assigned"),
+    ("en_route", "On the way"),
+    ("arrived", "Arrived"),
+]
+CANCELLABLE_STATUSES = {"received", "assigned", "en_route"}
 
 CSS = """
 *{box-sizing:border-box}
@@ -86,6 +94,25 @@ button{padding:10px 18px;border-radius:8px;border:0;background:#0B3D91;color:#ff
 .error{color:#C5221F}
 .muted{color:#5F6368;font-size:14px}
 .demo{font-size:12px;color:#5F6368;text-align:center;margin:24px}
+.eta-hero{background:linear-gradient(135deg,#0B3D91 0%,#1452B8 100%);color:#fff;border:0}
+.eta-hero.arrived{background:linear-gradient(135deg,#137333 0%,#1E8E3E 100%)}
+.eta-hero.cancelled{background:linear-gradient(135deg,#4B5563 0%,#6B7280 100%)}
+.eta-big{font-size:44px;font-weight:800;line-height:1.1;margin:8px 0}
+.stepper{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+.step{text-align:center;font-size:13px;color:#5F6368}
+.step .dot{width:30px;height:30px;border-radius:50%;border:2px solid #DADCE0;display:inline-flex;
+align-items:center;justify-content:center;font-weight:700;margin-bottom:6px;background:#fff}
+.step[data-state="done"] .dot{background:#0B3D91;border-color:#0B3D91;color:#fff}
+.step[data-state="active"] .dot{background:#E8F0FE;border-color:#0B3D91;color:#0B3D91}
+.step[data-state="active"]{color:#0B3D91;font-weight:700}
+.map-box{border:1px solid #DADCE0;border-radius:10px;overflow:hidden;background:#EDF2FA}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.btn-secondary{background:#F3F7FD;color:#0B3D91;border:1px solid #C8D9F6}
+.btn-danger{background:#fff;color:#C5221F;border:1px solid #F5C2C0}
+.btn-danger-solid{background:#C5221F;color:#fff}
+dialog{border:0;border-radius:12px;padding:22px;max-width:400px;width:90%;box-shadow:0 12px 30px rgba(0,0,0,.2)}
+dialog::backdrop{background:rgba(15,23,42,.48)}
+.toast-msg{margin-top:10px;font-size:14px;color:#137333;font-weight:600}
 """
 
 
@@ -245,6 +272,128 @@ async def list_requests(request: Request):
     )
 
 
+def _step_state(step_key: str, status: str) -> str:
+    order = [k for k, _ in TRACKER_STEPS]
+    if status not in order:
+        return "pending"
+    cur_idx, step_idx = order.index(status), order.index(step_key)
+    if step_idx < cur_idx or (status == "arrived" and step_idx == cur_idx):
+        return "done"
+    return "active" if step_idx == cur_idx else "pending"
+
+
+def _progress_tracker_html(r: dict) -> str:
+    hist = {h["status"]: h["at"] for h in r.get("history", [])}
+    items = []
+    for i, (key, label) in enumerate(TRACKER_STEPS, start=1):
+        state = _step_state(key, r["status"])
+        mark = "✓" if state == "done" else str(i)
+        at = html.escape(hist.get(key, "—")[-8:]) if key in hist else "—"
+        items.append(
+            f'<div class="step" data-testid="step-{key}" data-state="{state}">'
+            f'<div class="dot">{mark}</div><div>{label}</div><div class="muted">{at}</div></div>'
+        )
+    return (
+        '<div class="card"><h2>Rescue Progress</h2>'
+        f'<div class="stepper" data-testid="progress-tracker">{"".join(items)}</div></div>'
+    )
+
+
+def _live_map_html(r: dict) -> str:
+    progress_by_status = {"received": 0.1, "assigned": 0.25, "en_route": 0.6, "arrived": 1.0}
+    frac = progress_by_status.get(r["status"], 0.15)
+    tx = round(80 + frac * (540 - 80), 1)
+    ty = round(180 - frac * (180 - 72), 1)
+    return f"""<div class="card"><h2>Live Map</h2>
+<div class="map-box" data-testid="live-map">
+<svg viewBox="0 0 640 220" style="display:block;width:100%;height:200px" aria-label="Live rescue map">
+  <rect x="0" y="0" width="640" height="220" fill="#E8EFFA"/>
+  <path d="M 80 180 L 540 72" stroke="#93B4E8" stroke-width="6" stroke-dasharray="10 8" fill="none"/>
+  <path d="M 80 180 L {tx} {ty}" stroke="#0B3D91" stroke-width="6" fill="none"/>
+  <g transform="translate(540,72)"><circle r="10" fill="#0B3D91" stroke="#fff" stroke-width="3"/>
+    <text x="0" y="-18" text-anchor="middle" fill="#0B3D91" font-size="12" font-weight="700">You</text></g>
+  <g data-testid="truck-marker" transform="translate({tx},{ty})">
+    <rect x="-18" y="-13" width="36" height="26" rx="7" fill="#fff" stroke="#0B3D91" stroke-width="2.5"/>
+    <text x="0" y="5" text-anchor="middle" font-size="15">🚚</text></g>
+</svg></div></div>"""
+
+
+def _live_tracking_html(r: dict, user: dict) -> str:
+    status = r["status"]
+    hero_cls = "arrived" if status == "arrived" else ("cancelled" if status == "cancelled" else "")
+    if status == "cancelled":
+        eta_big, eta_sub = "Cancelled", "This roadside assistance request has been cancelled."
+    elif status == "arrived":
+        eta_big, eta_sub = "Here!", "Your driver has arrived at your location."
+    elif r.get("eta_minutes") is not None:
+        eta_big = f"{r['eta_minutes']} min away"
+        eta_sub = f"Refreshes automatically every 2 minutes &bull; {html.escape(r['location'])}"
+    else:
+        eta_big, eta_sub = "Assigning driver...", f"We are finding the closest truck near {html.escape(r['location'])}."
+
+    d_name = html.escape(r.get("driver_name") or r.get("driver") or "Assigning soon")
+    d_truck = html.escape(r.get("driver_truck") or "Pending assignment")
+    d_rating = f"★ {r['driver_rating']}" if r.get("driver_rating") else "—"
+    d_phone = html.escape(r.get("driver_phone") or "Not yet available")
+    can_cancel = user["role"] == "member" and status in CANCELLABLE_STATUSES
+    cancel_btn = (
+        '<button type="button" class="btn-danger" id="openCancelBtn">Cancel Rescue Request</button>'
+        if can_cancel
+        else ""
+    )
+
+    return f"""<div class="card eta-hero {hero_cls}" data-testid="refresh-interval" data-refresh-ms="120000">
+  <div>Live Rescue Tracking</div>
+  <div class="eta-big" data-testid="live-eta">{eta_big}</div>
+  <div>{eta_sub}</div>
+</div>
+{_progress_tracker_html(r)}
+{_live_map_html(r)}
+<div class="card">
+  <h2>Your Rescue Driver</h2>
+  <p><strong data-testid="driver-name">{d_name}</strong> &bull; <span data-testid="driver-rating">{d_rating}</span></p>
+  <p class="muted" data-testid="driver-truck">{d_truck}</p>
+  <p data-testid="driver-phone">Phone: {d_phone}</p>
+  <div class="actions">
+    <button type="button" id="callDriverBtn">Call Driver</button>
+    <button type="button" class="btn-secondary" id="shareLinkBtn">Share Live Link</button>
+    {cancel_btn}
+  </div>
+  <div id="shareToast" class="toast-msg" aria-live="polite"></div>
+</div>
+<dialog id="callDialog"><h3>Calling {d_name}</h3><p>Phone: <strong>{d_phone}</strong></p>
+  <button type="button" id="closeCallBtn">Close</button></dialog>
+<dialog id="cancelDialog"><h3>Cancel your rescue?</h3><p>Are you sure you want to cancel request {r["id"]}?</p>
+  <form method="post" action="/requests/{r["id"]}/cancel" style="display:flex;gap:10px;justify-content:flex-end">
+    <button type="button" class="btn-secondary" id="keepWaitingBtn">Keep Waiting</button>
+    <button type="submit" class="btn-danger-solid">Yes, Cancel</button>
+  </form></dialog>
+<script>
+(() => {{
+  setInterval(() => window.location.reload(), 120000);
+  const callBtn = document.getElementById("callDriverBtn");
+  const callDlg = document.getElementById("callDialog");
+  const closeCall = document.getElementById("closeCallBtn");
+  if (callBtn && callDlg) callBtn.addEventListener("click", () => callDlg.showModal());
+  if (closeCall && callDlg) closeCall.addEventListener("click", () => callDlg.close());
+  const shareBtn = document.getElementById("shareLinkBtn");
+  const shareToast = document.getElementById("shareToast");
+  if (shareBtn && shareToast) shareBtn.addEventListener("click", () => {{
+    if (navigator.clipboard && navigator.clipboard.writeText) {{
+      navigator.clipboard.writeText(window.location.href).catch(() => {{}});
+    }}
+    shareToast.setAttribute("role", "status");
+    shareToast.textContent = "Live tracking link copied! Sign-in is required to view.";
+  }});
+  const openCancel = document.getElementById("openCancelBtn");
+  const cancelDlg = document.getElementById("cancelDialog");
+  const keepBtn = document.getElementById("keepWaitingBtn");
+  if (openCancel && cancelDlg) openCancel.addEventListener("click", () => cancelDlg.showModal());
+  if (keepBtn && cancelDlg) keepBtn.addEventListener("click", () => cancelDlg.close());
+}})();
+</script>"""
+
+
 @app.get("/requests/{request_id}")
 async def show_request(request: Request, request_id: str, created: int = 0):
     user = await signed_in(request)
@@ -275,7 +424,7 @@ async def show_request(request: Request, request_id: str, created: int = 0):
 <tr><th>Status</th><td data-testid="status">{STATUS_LABEL[r["status"]]}</td></tr>
 <tr><th>ETA</th><td data-testid="eta">{eta}</td></tr>
 <tr><th>Driver</th><td data-testid="driver">{driver}</td></tr>
-</table></div>{update}""",
+</table></div>{_live_tracking_html(r, user)}{update}""",
         user,
     )
 
@@ -299,6 +448,25 @@ async def update_request(
         user = await signed_in(request)
         return page(
             "Update failed",
+            f'<div class="card"><p class="error" role="alert">{html.escape(r.json().get("message", ""))}</p>'
+            f'<a href="/requests/{request_id}">Back</a></div>',
+            user,
+        )
+    return RedirectResponse(f"/requests/{request_id}", status_code=303)
+
+
+# --------------------------------------------------------------------------- RSA-004 member cancel
+
+
+@app.post("/requests/{request_id}/cancel")
+async def cancel_request(request: Request, request_id: str):
+    r = await client.post(f"/v1/requests/{request_id}/cancel", headers=auth_headers(request))
+    if r.status_code == 401:
+        return to_signin()
+    if r.status_code != 200:
+        user = await signed_in(request)
+        return page(
+            "Cancel failed",
             f'<div class="card"><p class="error" role="alert">{html.escape(r.json().get("message", ""))}</p>'
             f'<a href="/requests/{request_id}">Back</a></div>',
             user,
