@@ -1,0 +1,46 @@
+name: Feature request
+description: Ask for something new, in plain words. The team turns agreed requests into specs.
+title: "[Request] "
+labels: ["request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the need, not the solution. No technical detail required — the spec comes later.
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: What problem does this solve? What happens today?
+      placeholder: Customers sometimes order by mistake and have to email support to cancel.
+    validations:
+      required: true
+  - type: textarea
+    id: who
+    attributes:
+      label: Who
+      description: Who has this problem? (customers, staff, marketing, …)
+      placeholder: Customers who have placed an order that hasn't shipped yet.
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What they want
+      description: What should they be able to do?
+      placeholder: Cancel the order themselves from the order page and see that it worked.
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Example
+      description: A real or typical situation.
+      placeholder: "\"I ordered 2 mugs instead of 1. I want to undo it before it ships.\""
+  - type: textarea
+    id: questions
+    attributes:
+      label: Open questions
+      description: Anything you're unsure about. One per line, as checkboxes.
+      value: |
+        - [ ]

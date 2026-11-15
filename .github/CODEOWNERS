@@ -1,0 +1,6 @@
+# Who must approve changes (standards/security.md SEC-5).
+# In a real organisation these are teams, e.g. @aaa/security; this demo has one owner.
+/standards/          @gprothia
+/standards/aaa.md    @gprothia
+/deploy/             @gprothia
+/.github/workflows/  @gprothia
