@@ -22,7 +22,6 @@ env:
   AR: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.AR_REPO }}
   WIF_PROVIDER: ${{ vars.WIF_PROVIDER }}          # projects/NUM/locations/global/workloadIdentityPools/github/providers/github
   CI_SA: ${{ vars.CI_SERVICE_ACCOUNT }}           # gh-pr-sandbox@PROJECT.iam.gserviceaccount.com
-  NS: pr-${{ github.event.pull_request.number }}
   SANDBOX_KIND: pr
   PR_NUMBER: ${{ github.event.pull_request.number }}
   SHA: ${{ github.event.pull_request.head.sha }}
@@ -135,6 +134,11 @@ jobs:
         with:
           cluster_name: ${{ env.CLUSTER }}
           location: ${{ env.REGION }}
+
+      - name: Name this PR's sandbox (per repo, so repos sharing the cluster never collide)
+        run: |
+          slug=$(echo "${GITHUB_REPOSITORY#*/}" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9\n' '-')
+          { echo "REPO_SLUG=$slug"; echo "NS=$slug-pr-$PR_NUMBER"; } >> "$GITHUB_ENV"
 
       - name: Create / refresh sandbox namespace
         run: |

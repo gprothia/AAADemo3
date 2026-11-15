@@ -20,6 +20,8 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
     steps:
+      - name: This repo's sandbox label
+        run: echo "REPO_SLUG=$(echo "${GITHUB_REPOSITORY#*/}" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9\n' '-')" >> "$GITHUB_ENV"
       - uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ vars.WIF_PROVIDER }}
@@ -31,7 +33,7 @@ jobs:
 
       - name: Delete this PR's sandbox
         if: github.event_name == 'pull_request'
-        run: kubectl delete namespace "pr-${{ github.event.pull_request.number }}" --ignore-not-found --wait=false
+        run: kubectl delete namespace "$REPO_SLUG-pr-${{ github.event.pull_request.number }}" --ignore-not-found --wait=false
 
       - name: Sweep closed or stale sandboxes
         if: github.event_name != 'pull_request'
@@ -39,7 +41,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           now=$(date -u +%s)
-          kubectl get ns -l sandbox=pr \
+          kubectl get ns -l "sandbox=pr,repo=$REPO_SLUG" \
             -o jsonpath='{range .items[*]}{.metadata.name} {.metadata.labels.pr} {.metadata.annotations.sandbox/created-at}{"\n"}{end}' |
           while read -r ns pr created; do
             [ -z "$ns" ] && continue
@@ -55,7 +57,7 @@ jobs:
         if: github.event_name != 'pull_request'
         run: |
           now=$(date -u +%s)
-          kubectl get ns -l sandbox=dev \
+          kubectl get ns -l "sandbox=dev,repo=$REPO_SLUG" \
             -o jsonpath='{range .items[*]}{.metadata.name} {.metadata.annotations.sandbox/created-at}{"\n"}{end}' |
           while read -r ns created; do
             [ -z "$ns" ] && continue

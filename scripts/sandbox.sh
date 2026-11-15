@@ -36,7 +36,10 @@ AR="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPO}"
 
 BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 SLUG="$(echo "$BRANCH" | tr '[:upper:]' '[:lower:]' | sed -E 's#[^a-z0-9]+#-#g; s#^-+|-+$##g' | cut -c1-40)"
-export NS="${SANDBOX_NS:-dev-${SLUG}}"
+REPO_SLUG="$(basename "$(git remote get-url origin 2>/dev/null || pwd)" .git | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9\n' '-')"
+export REPO_SLUG
+export NS="${SANDBOX_NS:-dev-${REPO_SLUG}-${SLUG}}"
+NS="${NS:0:63}"; NS="${NS%-}"
 SHA_FULL="$(git rev-parse HEAD)"
 TAG="dev-$(git rev-parse --short HEAD)"
 DIRTY="$(git status --porcelain -- services tests deploy/app deploy/sandbox/namespace.yaml deploy/sandbox/test-runner.yaml)"
