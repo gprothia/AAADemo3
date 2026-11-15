@@ -59,6 +59,14 @@ p95_latency_ms: 300
 error_rate_pct: 1.0
 ```
 
+## Prototype reference
+<!-- Only when the request linked a prototype; delete otherwise.
+Link: prototypes/<name>/ (from branch proto/<name>)
+| Screen / element | What the user sees or does | Data behind it | Became |
+|---|---|---|---|
+| ... | ... | ... | XXX-000-AC1, or open question |
+-->
+
 ## Edge cases & errors
 - ...
 
