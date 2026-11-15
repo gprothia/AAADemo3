@@ -34,7 +34,7 @@ Usage: `/build-spec specs/<ID>-<name>.md`. Follow `AGENTS.md` sections 3–5.
 ## 4. Stage on GKE and run the full regression
 // turbo
 9. `scripts/sandbox.sh all`: builds the images for this commit, stages the app as pods in
-   `dev-<branch>`, runs **all** tests in a test pod, prints `Sandbox result: ...`.
+   `dev-<repo>-<branch>`, runs **all** tests in a test pod, prints `Sandbox result: ...`.
 10. Red: read `reports/<namespace>/`, fix, commit, repeat step 9. Never open a PR on red.
 
 ## 5. Pull request with evidence

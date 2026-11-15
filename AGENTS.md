@@ -120,8 +120,8 @@ issue with a summary of the decisions (never edit the issue description).
 | Environment | Where | Deployed by | Test hooks |
 |---|---|---|---|
 | Local | your machine | you / the agent | on (`ENABLE_TEST_HOOKS=true`) |
-| Dev sandbox | GKE `dev-<branch>` | `scripts/sandbox.sh` before the PR | on |
-| PR sandbox | GKE `pr-<N>` | CI on every PR | on |
+| Dev sandbox | GKE `dev-<repo>-<branch>` | `scripts/sandbox.sh` before the PR | on |
+| PR sandbox | GKE `<repo>-pr-<N>` | CI on every PR | on |
 | **UAT** | **Cloud Run** `aaademo3-uat-web` / `-api` | **CI on every merge to `main`** | **off** |
 
 Agents never deploy to UAT themselves; merging is a person's decision and the pipeline does
@@ -138,7 +138,7 @@ the rest.
 2. Style: `ruff format . && ruff check .` and `cd tests/ui && npx eslint .` pass.
 3. Local run: both suites green against the app on this machine.
 4. Commit everything (the sandbox refuses uncommitted changes, so the evidence matches a commit).
-5. `scripts/sandbox.sh all`: Cloud Build images → app staged as pods in `dev-<branch>` on
+5. `scripts/sandbox.sh all`: Cloud Build images → app staged as pods in `dev-<repo>-<branch>` on
    GKE → test pod runs **all** tests → reports in `reports/<namespace>/`. Must be green.
 6. `git push -u origin HEAD`, open the PR, then `scripts/sandbox.sh publish`: posts the
    result as a commit status and a PR comment listing every test with its criterion.

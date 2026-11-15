@@ -1,10 +1,12 @@
-# Rendered in CI (envsubst) and by scripts/sandbox.sh: NS, SANDBOX_KIND (pr|dev), PR_NUMBER, SHA, CREATED_AT
+# Rendered in CI (envsubst) and by scripts/sandbox.sh: NS, REPO_SLUG, SANDBOX_KIND (pr|dev), PR_NUMBER, SHA, CREATED_AT
+# Spaces are named and labelled per repo, so repos sharing a cluster never touch each other's.
 apiVersion: v1
 kind: Namespace
 metadata:
   name: ${NS}
   labels:
     sandbox: ${SANDBOX_KIND}
+    repo: ${REPO_SLUG}
     pr: "${PR_NUMBER}"
   annotations:
     sandbox/sha: "${SHA}"
