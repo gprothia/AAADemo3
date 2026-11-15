@@ -155,7 +155,8 @@ the rest.
    GKE → test pod runs **all** tests → reports in `reports/<namespace>/`. Must be green.
 6. `git push -u origin HEAD`, open the PR, then `scripts/sandbox.sh publish`: posts the
    result as a commit status and a PR comment listing every test with its criterion.
-7. `scripts/sandbox.sh down`.
+7. Leave the `dev-<repo>-<branch>` sandbox running (demo mode) and tell the user its name.
+   The user runs `scripts/sandbox.sh down` when done; the cleanup workflow removes it after 24 hours.
 
 **Pull request**
 - `gh pr create --base main` with a body following `.github/pull_request_template.md`:

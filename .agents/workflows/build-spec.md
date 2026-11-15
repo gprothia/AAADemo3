@@ -45,6 +45,11 @@ Usage: `/build-spec specs/<ID>-<name>.md`. Follow `AGENTS.md` sections 3–5.
 // turbo
 13. `scripts/sandbox.sh publish`: posts the sandbox result as a commit status and a PR comment
     listing every test and its criterion.
-// turbo
-14. `scripts/sandbox.sh down`.
+14. **Leave the sandbox running** (demo mode): do NOT run `scripts/sandbox.sh down`.
+    Tell the user the namespace name so they can show it on GKE. It is removed by
+    `scripts/sandbox.sh down` when they are done, or by the cleanup workflow after 24 hours.
+    <!-- Normal mode: restore the line below to delete the sandbox straight away.
+    // turbo
+    14. `scripts/sandbox.sh down`.
+    -->
 15. Print the PR URL. CI now repeats the checks independently; a person reviews and merges.
