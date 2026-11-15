@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import glob
 import json
+import os
 import re
 import sys
 import xml.etree.ElementTree as ET
@@ -70,12 +71,19 @@ def main(argv: list[str]) -> int:
     Path(reports).mkdir(parents=True, exist_ok=True)
     Path(reports, "result.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
 
+    # SANDBOX_LABEL=PR check when GitHub Actions runs this; the default is the developer's pre-PR run.
+    label = os.environ.get("SANDBOX_LABEL", "pre-PR")
+    who = (
+        "GitHub rebuilt this commit and tested it in its own namespace, independent of the developer's run."
+        if label != "pre-PR"
+        else "Run by the developer before the PR was opened."
+    )
     specs = sorted({t["ac"].rsplit("-AC", 1)[0] for t in tests if t["ac"]})
     md = [
-        f"### GKE sandbox (pre-PR): {status} - {passed}/{total} tests passed",
+        f"### GKE sandbox ({label}): {status} - {passed}/{total} tests passed",
         "",
-        f"Commit `{sha[:7]}` · images `{tag}` · namespace `{ns}`.  ",
-        "The app ran as pods on GKE and **all** tests ran: the new feature and regression "
+        f"Commit `{sha[:7]}` · images `{tag[:12]}` · namespace `{ns}`.  ",
+        f"{who} The app ran as pods on GKE and **all** tests ran: the new feature and regression "
         f"for every spec ({', '.join(specs) or 'none'}).",
         "",
         "| | Criterion | Suite | Test |",
