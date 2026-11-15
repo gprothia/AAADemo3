@@ -3,6 +3,20 @@
 **Built by:** Marketing, in Antigravity ("vibe-coded" in a few minutes).
 **Status:** prototype only. Fake data, no backend, never deployed.
 
+## The screens
+
+**Tracking page**
+
+![Track my rescue: tracking page](screens/1-tracking.png)
+
+**After clicking "Share with family"**
+
+![Track my rescue: share link](screens/2-share-with-family.png)
+
+To click through it yourself, open [`index.html`](index.html) in a browser
+(on your laptop: switch to this branch and double-click the file), or use this live preview:
+https://htmlpreview.github.io/?https://github.com/gprothia/AAADemo3/blob/proto/track-my-rescue/prototypes/track-my-rescue/index.html
+
 ## The idea, in plain words
 When members are stranded, the worst part is not knowing when help will arrive. Give them one
 page that shows how far away the truck is, who is coming, and lets them reassure family.
