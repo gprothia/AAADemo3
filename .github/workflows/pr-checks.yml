@@ -3,10 +3,17 @@ name: PR checks
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+  # PRs opened by a workflow (the SRE agent's root-cause PR) don't trigger pull_request
+  # events, so the release workflow starts the same checks with this, on the PR's branch.
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: PR number to check (run on that PR's branch)
+        required: true
 
 # One sandbox run per PR at a time; a new push cancels the old run.
 concurrency:
-  group: pr-checks-${{ github.event.pull_request.number }}
+  group: pr-checks-${{ github.event.pull_request.number || inputs.pr_number }}
   cancel-in-progress: true
 
 permissions:
@@ -23,8 +30,9 @@ env:
   WIF_PROVIDER: ${{ vars.WIF_PROVIDER }}          # projects/NUM/locations/global/workloadIdentityPools/github/providers/github
   CI_SA: ${{ vars.CI_SERVICE_ACCOUNT }}           # gh-pr-sandbox@PROJECT.iam.gserviceaccount.com
   SANDBOX_KIND: pr
-  PR_NUMBER: ${{ github.event.pull_request.number }}
-  SHA: ${{ github.event.pull_request.head.sha }}
+  PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+  SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  BASE_REF: ${{ github.base_ref || 'main' }}
 
 jobs:
   # 1) Deterministic gate: every approved acceptance criterion has a test.
@@ -65,7 +73,7 @@ jobs:
   # 2) Advisory: Gemini compares changed specs with changed tests and comments on the PR.
   gemini-spec-review:
     # Skip on fork PRs (no OIDC) and until Google Cloud is connected (repo variables set).
-    if: github.event.pull_request.head.repo.full_name == github.repository && vars.GCP_PROJECT_ID != ''
+    if: (github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository) && vars.GCP_PROJECT_ID != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -78,7 +86,7 @@ jobs:
         with: { node-version: "22" }
       - name: Bundle spec + test diff as context
         run: |
-          base="origin/${{ github.base_ref }}"
+          base="origin/$BASE_REF"
           {
             echo "# Changed specs"; git diff "$base"...HEAD -- specs/
             echo; echo "# Full text of changed specs"
@@ -96,16 +104,23 @@ jobs:
           GEMINI_CLI_TRUST_WORKSPACE: "true"   # headless run in CI: trust the checked-out repo
         run: |
           # Headless Gemini CLI. Context is piped in, so no file or shell tools are needed.
-          npx -y @google/gemini-cli@latest \
-            -p "$(cat .github/gemini/spec-review-prompt.md)" < context.md > review.md
+          # Occasionally the CLI returns an empty answer: retry once, then say so instead of failing.
+          for attempt in 1 2; do
+            npx -y @google/gemini-cli@latest \
+              -p "$(cat .github/gemini/spec-review-prompt.md)" < context.md > review.md || true
+            [ -s review.md ] && break
+            echo "Gemini returned an empty review (attempt $attempt)"; sleep 10
+          done
+          [ -s review.md ] || echo "_Gemini returned no review this time. Re-run this job to try again._" > review.md
       - uses: marocchino/sticky-pull-request-comment@v2
         with:
           header: gemini-spec-review
+          number: ${{ env.PR_NUMBER }}
           path: review.md
 
   # 3) Build app + test-runner images tagged with the PR head SHA.
   build:
-    if: github.event.pull_request.head.repo.full_name == github.repository && vars.GCP_PROJECT_ID != ''
+    if: (github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository) && vars.GCP_PROJECT_ID != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -198,7 +213,7 @@ jobs:
         env:
           SANDBOX_LABEL: PR check
         run: |
-          python3 scripts/sandbox_report.py reports "$NS" "$SHA" "${TEST_EXIT:-1}" "$SHA" "$GITHUB_HEAD_REF"
+          python3 scripts/sandbox_report.py reports "$NS" "$SHA" "${TEST_EXIT:-1}" "$SHA" "${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
           cat reports/summary.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Post the PR check result on the PR (updated in place on every push)
@@ -206,6 +221,7 @@ jobs:
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           header: gke-pr-check
+          number: ${{ env.PR_NUMBER }}
           path: reports/summary.md
 
       - uses: actions/upload-artifact@v4
