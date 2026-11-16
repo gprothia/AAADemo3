@@ -221,7 +221,7 @@ jobs:
             echo "<!-- release-record -->"
             echo "### $head"
             echo
-            echo "Production space \`${GITHUB_REPOSITORY#*/}-prod\` on GKE \`$CLUSTER\` · canary = 1 of 10 copies (about 10% of traffic) · ${DURATION}s of synthetic member traffic · [release run]($RUN_URL)"
+            echo "Production space \`$(echo "${GITHUB_REPOSITORY#*/}" | tr '[:upper:]' '[:lower:]')-prod\` on GKE \`$CLUSTER\` · canary = 1 of 10 copies (about 10% of traffic) · ${DURATION}s of synthetic member traffic · [release run]($RUN_URL)"
             echo
             echo "#### Classification"
             cat evidence/classification.md

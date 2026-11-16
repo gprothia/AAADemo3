@@ -22,7 +22,8 @@ feature request (GitHub issue, plain language), optionally linking a vibe-coded 
 ```
 
 ## Never
-- Commit to `main`, merge, approve, force-push, or delete branches you didn't create.
+- Commit to `main`, approve, force-push, or delete branches you didn't create. Merge only in
+  `/release`, after the user has said yes to that PR.
 - Change a spec's acceptance criteria, or weaken a test, to make something pass.
 - Take a business decision the issue doesn't contain. Ask, or list it as an open question.
 - Overwrite a GitHub issue's description. Add a comment instead.

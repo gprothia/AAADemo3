@@ -39,7 +39,7 @@ def target(files: list[str]) -> dict:
         if p.suffix == ".md" and p.exists() and not p.name.startswith("_") and (slo := spec_slo(p)):
             found[p.stem.split("-", 2)[0] + "-" + p.stem.split("-", 2)[1]] = slo
     if not found:
-        return {**DEFAULT, "from": ["default (standards/slo.md)"]}
+        return {**DEFAULT, "from": ["the default in standards/slo.md"]}
     return {
         "p95_latency_ms": min(s["p95_latency_ms"] for s in found.values()),
         "error_rate_pct": min(s["error_rate_pct"] for s in found.values()),
