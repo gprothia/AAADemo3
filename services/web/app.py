@@ -335,6 +335,13 @@ def _live_tracking_html(r: dict, user: dict) -> str:
     d_truck = html.escape(r.get("driver_truck") or "Pending assignment")
     d_rating = f"★ {r['driver_rating']}" if r.get("driver_rating") else "—"
     d_phone = html.escape(r.get("driver_phone") or "Not yet available")
+    # RSA-005: partner verification badge
+    if r.get("driver_verified") is True:
+        badge = '<span class="badge" data-testid="driver-verified">✔ Verified driver</span>'
+    elif r.get("driver_verified") is False:
+        badge = '<span class="muted" data-testid="driver-unverified">Verification pending</span>'
+    else:
+        badge = ""
     can_cancel = user["role"] == "member" and status in CANCELLABLE_STATUSES
     cancel_btn = (
         '<button type="button" class="btn-danger" id="openCancelBtn">Cancel Rescue Request</button>'
@@ -353,6 +360,7 @@ def _live_tracking_html(r: dict, user: dict) -> str:
   <h2>Your Rescue Driver</h2>
   <p><strong data-testid="driver-name">{d_name}</strong> &bull; <span data-testid="driver-rating">{d_rating}</span></p>
   <p class="muted" data-testid="driver-truck">{d_truck}</p>
+  <p>{badge}</p>
   <p data-testid="driver-phone">Phone: {d_phone}</p>
   <div class="actions">
     <button type="button" id="callDriverBtn">Call Driver</button>
