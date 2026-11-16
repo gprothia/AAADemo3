@@ -46,6 +46,10 @@ TEST_HOOKS = os.environ.get("ENABLE_TEST_HOOKS", "false").lower() == "true"
 # Demo sign-in only (standards/aaa.md): production uses the company identity provider.
 SECRET = os.environ.get("DEMO_AUTH_SECRET", "demo-only-not-a-secret").encode()
 TOKEN_TTL_S = 8 * 3600
+# Release identity (deploy/prod): which build answered, and whether it is the stable or the
+# canary copy. Sent on every response so a canary can be measured on its own (standards/slo.md).
+APP_VERSION = os.environ.get("APP_VERSION", "dev")
+APP_TRACK = os.environ.get("APP_TRACK", "")
 
 app = FastAPI(title="Roadside Assistance API", version="1.0.0")
 
@@ -146,6 +150,9 @@ async def request_context(request: Request, call_next):
     try:
         response = await call_next(request)
         response.headers["X-Request-ID"] = rid
+        response.headers["X-App-Version"] = APP_VERSION
+        if APP_TRACK:
+            response.headers["X-App-Track"] = APP_TRACK
         if request.url.path != "/healthz":
             emit(
                 "http.request",
@@ -155,6 +162,8 @@ async def request_context(request: Request, call_next):
                 duration_ms=round((time.perf_counter() - start) * 1000, 1),
                 user=getattr(request.state, "user", None),
                 role=getattr(request.state, "role", None),
+                version=APP_VERSION,
+                track=APP_TRACK or None,
             )
         return response
     finally:

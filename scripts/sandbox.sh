@@ -7,7 +7,8 @@
 #   scripts/sandbox.sh build    build and push api, web and tests images (Cloud Build, no local Docker)
 #   scripts/sandbox.sh up       create/refresh the namespace and deploy the app
 #   scripts/sandbox.sh test     run the test-runner pod, fetch reports, write the result
-#   scripts/sandbox.sh publish  post the last result as a commit status + PR comment (after push)
+#   scripts/sandbox.sh load     load test with the partner's production latency, judged against the SLO
+#   scripts/sandbox.sh publish  post the last result (+ load test) as a commit status + PR comment (after push)
 #   scripts/sandbox.sh down     delete the namespace
 #   scripts/sandbox.sh status   show what's running
 #
@@ -121,6 +122,62 @@ test_run() {
   [[ "${code:-1}" == "0" ]]
 }
 
+load_test() {
+  # Production-like load in this sandbox: the partner's real latency (as in deploy/prod) and
+  # synthetic member traffic (tools/loadgen.py), judged like a canary (scripts/check_slo.py).
+  local tag secs="${1:-120}" slo p95 err specs rc=0
+  tag="$(current_tag)"
+  credentials
+  log "Load test in $NS: partner latency as in production, ${secs}s of member traffic"
+  kubectl -n "$NS" set env deploy/api PARTNER_LATENCY_MS=600 APP_TRACK=canary >/dev/null
+  kubectl -n "$NS" rollout status deploy/api --timeout=5m
+  kubectl -n "$NS" delete pod loadgen --ignore-not-found --wait=true >/dev/null
+  kubectl -n "$NS" create configmap loadgen --from-file=tools/loadgen.py --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+  sed -e "s#__IMAGE__#$AR/api:$tag#" -e "s#__SECS__#$secs#" <<'POD' | kubectl -n "$NS" apply -f -
+apiVersion: v1
+kind: Pod
+metadata: { name: loadgen }
+spec:
+  restartPolicy: Never
+  containers:
+    - name: loadgen
+      image: __IMAGE__
+      command: ["python", "/tools/loadgen.py"]
+      env:
+        - { name: API_BASE_URL, value: "http://api:8080" }
+        - { name: DURATION_S, value: "__SECS__" }
+      resources: { requests: { cpu: 500m, memory: 256Mi } }
+      volumeMounts: [{ name: tools, mountPath: /tools }]
+  volumes: [{ name: tools, configMap: { name: loadgen } }]
+POD
+  kubectl -n "$NS" wait pod/loadgen --for=jsonpath='{.status.phase}'=Running --timeout=10m >/dev/null || true
+  mkdir -p "$REPORTS"
+  kubectl -n "$NS" logs -f pod/loadgen | tee "$REPORTS/loadgen.log" | grep -v '^LOADGEN_RESULT' || true
+  grep '^LOADGEN_RESULT ' "$REPORTS/loadgen.log" | tail -1 | cut -d' ' -f2- > "$REPORTS/load.json"
+  kubectl -n "$NS" set env deploy/api PARTNER_LATENCY_MS- APP_TRACK- >/dev/null   # back to the test stub
+  [[ -s "$REPORTS/load.json" ]] || { echo "error: no load result (see $REPORTS/loadgen.log)" >&2; return 3; }
+
+  git fetch -q origin main || true
+  specs="$(git diff --name-only origin/main...HEAD -- 'specs/*.md' 2>/dev/null || true)"
+  # shellcheck disable=SC2086  # word splitting wanted: one argument per spec file
+  slo="$(python3 scripts/check_slo.py target $specs)"
+  p95="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["p95_latency_ms"])' "$slo")"
+  err="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["error_rate_pct"])' "$slo")"
+  python3 scripts/check_slo.py judge "$REPORTS/load.json" --p95 "$p95" --err "$err" \
+    --md "$REPORTS/load-judge.md" >/dev/null || rc=$?
+  {
+    echo "### GKE load test (pre-PR): $([[ $rc == 0 ]] && echo PASSED || echo FAILED)"
+    echo
+    echo "Partner latency as in production, ${secs}s of synthetic member traffic, commit \`${SHA_FULL:0:7}\`, namespace \`$NS\`."
+    echo
+    cat "$REPORTS/load-judge.md"
+  } > "$REPORTS/load.md"
+  echo "$SHA_FULL" > "$REPORTS/load.commit"
+  cat "$REPORTS/load-judge.md"
+  log "Load test: $([[ $rc == 0 ]] && echo PASSED || echo FAILED) (budget p95 ${p95} ms, errors ${err}%)"
+  return "$rc"
+}
+
 publish() {
   local result="$REPORTS/result.json" repo status passed total images commit pr desc state
   [[ -f "$result" ]] || { echo "error: no sandbox result for $NS - run: scripts/sandbox.sh all" >&2; exit 5; }
@@ -151,6 +208,9 @@ print(r["status"], r["passed"], r["total"], r["images"], r["commit"])' "$result"
   fi
   local marker="<!-- gke-sandbox-evidence -->" body existing
   body="$marker"$'\n'"$(cat "$REPORTS/summary.md")"
+  if [[ -f "$REPORTS/load.md" && "$(cat "$REPORTS/load.commit" 2>/dev/null)" == "$SHA_FULL" ]]; then
+    body+=$'\n\n'"$(cat "$REPORTS/load.md")"
+  fi
   existing="$(gh api "repos/$repo/issues/$pr/comments" --paginate \
     --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | tail -1)"
   if [[ -n "$existing" ]]; then
@@ -177,9 +237,10 @@ case "${1:-}" in
   build) build ;;
   up) up ;;
   test) test_run ;;
+  load) load_test "${2:-120}" ;;
   publish) publish ;;
   down) down ;;
   status) status ;;
   all) build; up; test_run ;;
-  *) sed -n '2,17p' "$0"; exit 1 ;;
+  *) sed -n '2,18p' "$0"; exit 1 ;;
 esac

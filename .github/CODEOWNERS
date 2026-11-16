@@ -4,3 +4,9 @@
 /standards/aaa.md    @gprothia
 /deploy/             @gprothia
 /.github/workflows/  @gprothia
+# The release gate (standards/slo.md SLO-2): changing it is never a standard change.
+/scripts/classify_change.py  @gprothia
+/scripts/check_slo.py        @gprothia
+/scripts/prod.sh             @gprothia
+/tools/loadgen.py            @gprothia
+/.github/sre/                @gprothia

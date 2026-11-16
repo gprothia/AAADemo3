@@ -17,10 +17,13 @@ feature request (GitHub issue, plain language), optionally linking a vibe-coded 
   → evidence posted to GitHub → pull request              /build-spec specs/<file>
   → CI re-checks independently → a person reviews and merges
   → merge deploys to UAT on Cloud Run, smoke-tested, rolled back on failure
+  → release: standard change? → GKE canary judged by the spec's SLO      /release #<PR>
+      → promote, or roll back + SRE agent opens a root-cause PR           /sre-review
 ```
 
 ## Never
-- Commit to `main`, merge, approve, force-push, or delete branches you didn't create.
+- Commit to `main`, approve, force-push, or delete branches you didn't create. Merge only in
+  `/release`, after the user has said yes to that PR.
 - Change a spec's acceptance criteria, or weaken a test, to make something pass.
 - Take a business decision the issue doesn't contain. Ask, or list it as an open question.
 - Overwrite a GitHub issue's description. Add a comment instead.
@@ -125,6 +128,10 @@ issue with a summary of the decisions (never edit the issue description).
 - **Test-only endpoints** go under `/test/...`, are registered only `if TEST_HOOKS:` (env
   `ENABLE_TEST_HOOKS`, **off by default**), and are hidden from the API schema. Only
   `deploy/app/api.yaml` (sandboxes) turns them on.
+- **Partner systems**: driver profiles and verification come from the partner Driver
+  Directory, through `services/api/driver_directory.py` (`lookup(driver_name)`). Each call is
+  a round trip to the partner; test environments use an instant stub.
+- Every response carries `X-App-Version` and, in production, `X-App-Track` (stable/canary).
 - `services/web`: FastAPI-rendered pages. The browser only talks to the website; it calls
   the API server-side with the signed-in user's token (cookie `session`).
 
@@ -136,6 +143,7 @@ issue with a summary of the decisions (never edit the issue description).
 | Dev sandbox | GKE `dev-<repo>-<branch>` | `scripts/sandbox.sh` before the PR | on |
 | PR sandbox | GKE `<repo>-pr-<N>` | CI on every PR | on |
 | **UAT** | **Cloud Run** `aaademo3-uat-web` / `-api` | **CI on every merge to `main`** | **off** |
+| **Production** (demo) | GKE `<repo>-prod`: API, 9 stable + 1 canary | **release workflow** after UAT | **off** |
 
 Agents never deploy to UAT themselves; merging is a person's decision and the pipeline does
 the rest.
@@ -162,3 +170,23 @@ the rest.
 - `gh pr create --base main` with a body following `.github/pull_request_template.md`:
   spec link, `Closes #<issue>`, criteria covered, the sandbox result line.
 - Print the PR URL. A person reviews: spec diff, then tests, then code.
+
+## 6. Releases (no change board for standard changes)
+
+Rules: `standards/slo.md`. The pipeline decides; agents watch, explain and investigate.
+- After UAT passes, `.github/workflows/release.yml` classifies the merged PR
+  (`scripts/classify_change.py`). **Standard change** → canary. **Not standard** (touches
+  `standards/`, `deploy/prod/`, the release gate, or has the `needs-approval` label) → waits
+  for a reviewer in the GitHub `production` environment.
+- **Canary**: 1 copy of the new version next to 9 stable ones in `<repo>-prod`
+  (`scripts/prod.sh`), synthetic member traffic (`tools/loadgen.py`), judged against the
+  strictest SLO of the specs the PR touched (`scripts/check_slo.py`). Within budget →
+  promoted. Over budget → rolled back, and the SRE agent (Gemini, in the workflow) opens a
+  root-cause PR labelled `sre-agent` with an incident report in `incidents/` and a fix.
+- `/release #<PR>`: merge only after the user says yes, then follow UAT and the release and
+  explain each stage. `/canary-status`: what runs in production. `/sre-review`: explain the
+  root-cause PR, prove the fix with `scripts/sandbox.sh all` and `scripts/sandbox.sh load`,
+  publish the evidence.
+- Never approve a release, run `scripts/prod.sh promote`/`canary` yourself, or change
+  `deploy/prod/` or the partner simulation to make a canary pass. `scripts/prod.sh status`
+  is always fine; `scripts/prod.sh rollback` and `down` only when the user asks.
