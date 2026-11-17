@@ -376,6 +376,22 @@ def list_requests(user: dict = Depends(require("member", "dispatcher"))):
     return sorted(rows, key=lambda r: r["created_at"], reverse=True)
 
 
+# RSA-005: cache partner lookups (5 min TTL) so request details stays within SLO budget (≤ 300 ms).
+_VERIFICATION_CACHE: dict[str, tuple[bool, float]] = {}
+_VERIFICATION_TTL_S = 300.0
+
+
+def _is_driver_verified(driver_name: str) -> bool:
+    now_mono = time.monotonic()
+    cached = _VERIFICATION_CACHE.get(driver_name)
+    if cached is not None and now_mono < cached[1]:
+        return cached[0]
+    profile = driver_directory.lookup(driver_name)
+    verified = profile["verified"] if profile else False
+    _VERIFICATION_CACHE[driver_name] = (verified, now_mono + _VERIFICATION_TTL_S)
+    return verified
+
+
 @app.get("/v1/requests/{request_id}")
 def get_request(request_id: str, user: dict = Depends(require("member", "dispatcher"))):
     r = REQUESTS.get(request_id)
@@ -383,8 +399,8 @@ def get_request(request_id: str, user: dict = Depends(require("member", "dispatc
         raise ApiError(404, "REQUEST_NOT_FOUND", "Request not found")
     # RSA-005: is the assigned driver verified by the partner Driver Directory?
     name = r.get("driver_name")
-    profile = driver_directory.lookup(name) if name else None
-    return {**r, "driver_verified": profile["verified"] if profile else None}
+    verified = _is_driver_verified(name) if name else None
+    return {**r, "driver_verified": verified}
 
 
 # --------------------------------------------------------------------------- RSA-003 dispatcher update
