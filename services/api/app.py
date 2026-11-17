@@ -5,6 +5,7 @@ Features (see specs/):
   RSA-001  Request roadside help
   RSA-002  View requests (members: their own; dispatchers: all)
   RSA-003  Dispatcher updates a request
+  RSA-005  Verified driver badge (partner Driver Directory)
 
 Standards applied (see standards/):
   aaa.md      Bearer token on every /v1 endpoint; roles; deny by default; audit events
@@ -31,6 +32,7 @@ from collections import deque
 from datetime import UTC, datetime
 from enum import StrEnum
 
+import driver_directory
 from fastapi import Depends, FastAPI, Header, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -379,7 +381,10 @@ def get_request(request_id: str, user: dict = Depends(require("member", "dispatc
     r = REQUESTS.get(request_id)
     if not r or not visible(r, user):  # never reveal that someone else's request exists
         raise ApiError(404, "REQUEST_NOT_FOUND", "Request not found")
-    return r
+    # RSA-005: is the assigned driver verified by the partner Driver Directory?
+    name = r.get("driver_name")
+    profile = driver_directory.lookup(name) if name else None
+    return {**r, "driver_verified": profile["verified"] if profile else None}
 
 
 # --------------------------------------------------------------------------- RSA-003 dispatcher update
