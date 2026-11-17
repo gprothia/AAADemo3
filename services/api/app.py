@@ -17,6 +17,7 @@ Storage is in memory and seeded at start, so every sandbox begins clean.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import contextvars
 import hashlib
@@ -203,7 +204,7 @@ def verify(token: str) -> dict | None:
         return None
 
 
-def current_user(request: Request, authorization: str | None = Header(default=None)) -> dict:
+async def current_user(request: Request, authorization: str | None = Header(default=None)) -> dict:
     """Authentication: every /v1 endpoint (except sign-in) requires a valid bearer token."""
     if not authorization or not authorization.lower().startswith("bearer "):
         raise ApiError(401, "UNAUTHENTICATED", "Sign in required")
@@ -217,7 +218,7 @@ def current_user(request: Request, authorization: str | None = Header(default=No
 def require(*roles: str):
     """Authorization: deny by default; only the listed roles may call the endpoint."""
 
-    def check(user: dict = Depends(current_user)) -> dict:
+    async def check(user: dict = Depends(current_user)) -> dict:
         if user["role"] not in roles:
             raise ApiError(403, "FORBIDDEN", "Your role may not do this")
         return user
@@ -240,7 +241,7 @@ def demo_login(body: DemoLogin):
 
 
 @app.get("/v1/me")
-def me(user: dict = Depends(current_user)):
+async def me(user: dict = Depends(current_user)):
     u = USERS[user["sub"]]
     return {"user": user["sub"], "name": u["name"], "role": user["role"]}
 
@@ -345,7 +346,7 @@ def healthz():
 
 
 @app.post("/v1/requests", status_code=201)
-def create_request(body: HelpRequestIn, user: dict = Depends(require("member"))):
+async def create_request(body: HelpRequestIn, user: dict = Depends(require("member"))):
     r = {
         "id": new_id(),
         "member": user["sub"],
@@ -371,20 +372,36 @@ def create_request(body: HelpRequestIn, user: dict = Depends(require("member")))
 
 
 @app.get("/v1/requests")
-def list_requests(user: dict = Depends(require("member", "dispatcher"))):
+async def list_requests(user: dict = Depends(require("member", "dispatcher"))):
     rows = [r for r in REQUESTS.values() if visible(r, user)]
     return sorted(rows, key=lambda r: r["created_at"], reverse=True)
 
 
+# RSA-005: cache partner lookups (5 min TTL) so request details stays within SLO budget (≤ 300 ms).
+_VERIFICATION_CACHE: dict[str, tuple[bool, float]] = {}
+_VERIFICATION_TTL_S = 300.0
+
+
+async def _is_driver_verified(driver_name: str) -> bool:
+    now_mono = time.monotonic()
+    cached = _VERIFICATION_CACHE.get(driver_name)
+    if cached is not None and now_mono < cached[1]:
+        return cached[0]
+    profile = await asyncio.to_thread(driver_directory.lookup, driver_name)
+    verified = profile["verified"] if profile else False
+    _VERIFICATION_CACHE[driver_name] = (verified, now_mono + _VERIFICATION_TTL_S)
+    return verified
+
+
 @app.get("/v1/requests/{request_id}")
-def get_request(request_id: str, user: dict = Depends(require("member", "dispatcher"))):
+async def get_request(request_id: str, user: dict = Depends(require("member", "dispatcher"))):
     r = REQUESTS.get(request_id)
     if not r or not visible(r, user):  # never reveal that someone else's request exists
         raise ApiError(404, "REQUEST_NOT_FOUND", "Request not found")
     # RSA-005: is the assigned driver verified by the partner Driver Directory?
     name = r.get("driver_name")
-    profile = driver_directory.lookup(name) if name else None
-    return {**r, "driver_verified": profile["verified"] if profile else None}
+    verified = await _is_driver_verified(name) if name else None
+    return {**r, "driver_verified": verified}
 
 
 # --------------------------------------------------------------------------- RSA-003 dispatcher update
@@ -401,7 +418,7 @@ class UpdateIn(BaseModel):
 
 
 @app.patch("/v1/requests/{request_id}")
-def update_request(request_id: str, body: UpdateIn, user: dict = Depends(require("dispatcher"))):
+async def update_request(request_id: str, body: UpdateIn, user: dict = Depends(require("dispatcher"))):
     r = REQUESTS.get(request_id)
     if not r:
         raise ApiError(404, "REQUEST_NOT_FOUND", "Request not found")
@@ -423,7 +440,7 @@ CANCELLABLE_STATUSES = {"received", "assigned", "en_route"}
 
 
 @app.post("/v1/requests/{request_id}/cancel")
-def cancel_request(request_id: str, user: dict = Depends(require("member"))):
+async def cancel_request(request_id: str, user: dict = Depends(require("member"))):
     r = REQUESTS.get(request_id)
     if not r or r["member"] != user["sub"]:
         raise ApiError(404, "REQUEST_NOT_FOUND", "Request not found")
