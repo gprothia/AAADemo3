@@ -28,8 +28,9 @@ import os
 import re
 import sys
 import time
+import urllib.parse
 import uuid
-from collections import deque
+from collections import Counter, deque
 from datetime import UTC, datetime
 from enum import StrEnum
 
@@ -284,6 +285,61 @@ class HelpType(StrEnum):
 
 STATUSES = ["received", "assigned", "en_route", "arrived", "completed"]
 REQUESTS: dict[str, dict] = {}
+RATINGS: dict[str, dict] = {}
+
+
+def _avatar_svg(bg_hex: str, shirt_hex: str, hair_hex: str, skin_hex: str) -> str:
+    svg = (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">'
+        f'<rect width="120" height="120" fill="{bg_hex}"/>'
+        f'<path d="M22 120c4-24 20-34 38-34s34 10 38 34z" fill="{shirt_hex}"/>'
+        f'<circle cx="60" cy="48" r="24" fill="{skin_hex}"/>'
+        f'<path d="M36 45c2-18 14-26 24-26 14 0 23 9 24 26-4-8-12-12-24-12s-19 4-24 12z" fill="{hair_hex}"/>'
+        f'<circle cx="51" cy="50" r="2.6" fill="#1F2937"/>'
+        f'<circle cx="69" cy="50" r="2.6" fill="#1F2937"/>'
+        f'<path d="M52 60c3 4 13 4 16 0" fill="none" stroke="#7C2D12" stroke-width="2.5" stroke-linecap="round"/>'
+        f"</svg>"
+    )
+    return "data:image/svg+xml;utf8," + urllib.parse.quote(svg)
+
+
+SEEDED_DRIVERS = [
+    {
+        "driver_name": "Marcus Vance",
+        "photo_url": _avatar_svg("#DBEAFE", "#0B3D91", "#1F2937", "#E0AC69"),
+        "avg_stars": 4.96,
+        "ratings_count": 84,
+        "top_tags": ["On time", "Friendly driver", "Explained the fix"],
+    },
+    {
+        "driver_name": "Elena Rostova",
+        "photo_url": _avatar_svg("#FCE7F3", "#1E3A8A", "#78350F", "#F1C27D"),
+        "avg_stars": 4.93,
+        "ratings_count": 71,
+        "top_tags": ["Explained the fix", "Friendly driver"],
+    },
+    {
+        "driver_name": "Devon Brooks",
+        "photo_url": _avatar_svg("#DCFCE7", "#0B3D91", "#111827", "#8D5524"),
+        "avg_stars": 4.89,
+        "ratings_count": 65,
+        "top_tags": ["On time", "Friendly driver"],
+    },
+    {
+        "driver_name": "Priya Nair",
+        "photo_url": _avatar_svg("#FEF3C7", "#1D4ED8", "#1F2937", "#C68642"),
+        "avg_stars": 4.85,
+        "ratings_count": 59,
+        "top_tags": ["Explained the fix", "On time"],
+    },
+    {
+        "driver_name": "Carlos Mendez",
+        "photo_url": _avatar_svg("#E0E7FF", "#0B3D91", "#27272A", "#D2996C"),
+        "avg_stars": 4.81,
+        "ratings_count": 52,
+        "top_tags": ["Friendly driver", "On time"],
+    },
+]
 
 
 def now() -> str:
@@ -292,6 +348,7 @@ def now() -> str:
 
 def seed() -> None:
     REQUESTS.clear()
+    RATINGS.clear()
     AUDIT.clear()
     r = {
         "id": "RSA-1001",
@@ -451,6 +508,103 @@ async def cancel_request(request_id: str, user: dict = Depends(require("member")
     r["history"].append({"status": "cancelled", "at": now()})
     audit("request.cancelled", actor=user["sub"], target=request_id, previous_status=prev)
     return r
+
+
+# --------------------------------------------------------------------------- RSA-006 rate my rescue
+
+
+ALLOWED_RATING_TAGS = ("On time", "Friendly driver", "Explained the fix")
+
+
+class RatingIn(BaseModel):
+    stars: int = Field(ge=1, le=5)
+    tags: list[str] = Field(default_factory=list)
+    comment: str | None = Field(default=None, max_length=500)
+
+    @field_validator("tags")
+    @classmethod
+    def check_tags(cls, v: list[str]) -> list[str]:
+        for tag in v:
+            if tag not in ALLOWED_RATING_TAGS:
+                raise ValueError(f"Unsupported tag: {tag}")
+        return list(dict.fromkeys(v))
+
+    @field_validator("comment")
+    @classmethod
+    def normalize_comment(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        stripped = v.strip()
+        return stripped if stripped else None
+
+
+@app.post("/v1/requests/{request_id}/rating", status_code=201)
+async def rate_request(request_id: str, body: RatingIn, user: dict = Depends(require("member"))):
+    r = REQUESTS.get(request_id)
+    if not r or r["member"] != user["sub"]:
+        raise ApiError(404, "REQUEST_NOT_FOUND", "Request not found")
+    if r["status"] != "completed":
+        raise ApiError(409, "RATING_NOT_ALLOWED", f"Cannot rate request in status {r['status']}")
+    if request_id in RATINGS:
+        raise ApiError(409, "ALREADY_RATED", "This rescue has already been rated")
+
+    rating = {
+        "request_id": request_id,
+        "driver_name": r.get("driver_name") or "Assigned Driver",
+        "stars": body.stars,
+        "tags": body.tags,
+        "comment": body.comment,
+        "created_at": now(),
+    }
+    RATINGS[request_id] = rating
+    r["rating"] = rating
+    # LOG-4: comment text is excluded from audit/application logs.
+    audit("rating.created", actor=user["sub"], target=request_id, stars=body.stars, tags=body.tags)
+    return rating
+
+
+@app.get("/v1/drivers/leaderboard")
+async def driver_leaderboard():
+    """Public monthly leaderboard (explicit AAA-1 exception per RSA-006)."""
+    by_driver: dict[str, dict] = {
+        d["driver_name"]: {
+            "driver_name": d["driver_name"],
+            "photo_url": d["photo_url"],
+            "total_stars": d["avg_stars"] * d["ratings_count"],
+            "ratings_count": d["ratings_count"],
+            "tag_counts": Counter({t: 1 for t in d["top_tags"]}),
+        }
+        for d in SEEDED_DRIVERS
+    }
+    for rating in RATINGS.values():
+        name = rating["driver_name"]
+        entry = by_driver.setdefault(
+            name,
+            {
+                "driver_name": name,
+                "photo_url": _avatar_svg("#E8F0FE", "#0B3D91", "#1F2937", "#E0AC69"),
+                "total_stars": 0.0,
+                "ratings_count": 0,
+                "tag_counts": Counter(),
+            },
+        )
+        entry["total_stars"] += rating["stars"]
+        entry["ratings_count"] += 1
+        entry["tag_counts"].update(rating["tags"])
+
+    board = [
+        {
+            "driver_name": e["driver_name"],
+            "photo_url": e["photo_url"],
+            "avg_stars": round(e["total_stars"] / e["ratings_count"], 2),
+            "ratings_count": e["ratings_count"],
+            "top_tags": [tag for tag, _ in e["tag_counts"].most_common(3)],
+        }
+        for e in by_driver.values()
+        if e["ratings_count"] > 0
+    ]
+    board.sort(key=lambda d: (-d["avg_stars"], -d["ratings_count"], d["driver_name"]))
+    return board[:10]
 
 
 # --------------------------------------------------------------------------- test hooks (sandbox only)
