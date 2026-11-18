@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rate My Rescue — AAA Roadside Assistance</title>
+  <style>
+    :root {
+      --aaa-blue: #0B3D91;
+      --aaa-blue-dark: #072A66;
+      --aaa-blue-light: #E8F0FE;
+      --aaa-blue-soft: #F3F7FD;
+      --accent-green: #137333;
+      --accent-green-bg: #E6F4EA;
+      --accent-amber: #B06000;
+      --accent-amber-bg: #FEF7E0;
+      --star-gold: #F59E0B;
+      --star-empty: #D1D5DB;
+      --text-main: #1F2937;
+      --text-muted: #5F6368;
+      --border: #DCE3EE;
+      --bg-page: #F5F7FB;
+      --bg-card: #FFFFFF;
+      --shadow-sm: 0 2px 8px rgba(11, 61, 145, 0.06);
+      --shadow-md: 0 8px 24px rgba(11, 61, 145, 0.10);
+      --radius: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg-page);
+      color: var(--text-main);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Top Brand Bar */
+    .topbar {
+      background: var(--aaa-blue);
+      color: #FFFFFF;
+      padding: 14px 20px;
+      box-shadow: 0 2px 10px rgba(11, 61, 145, 0.18);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+
+    .topbar-inner {
+      max-width: 960px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1.05rem;
+      letter-spacing: -0.01em;
+    }
+
+    .brand-badge {
+      background: #FFFFFF;
+      color: var(--aaa-blue);
+      font-weight: 800;
+      font-size: 0.8rem;
+      padding: 4px 8px;
+      border-radius: 8px;
+      letter-spacing: 0.03em;
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .nav-tab {
+      background: rgba(255, 255, 255, 0.14);
+      color: #FFFFFF;
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .nav-tab:hover {
+      background: rgba(255, 255, 255, 0.24);
+    }
+
+    .nav-tab.active {
+      background: #FFFFFF;
+      color: var(--aaa-blue);
+      border-color: #FFFFFF;
+    }
+
+    /* Main Layout */
+    .container {
+      max-width: 960px;
+      margin: 24px auto 48px;
+      padding: 0 16px;
+    }
+
+    .screen {
+      display: none;
+    }
+
+    .screen.active {
+      display: block;
+    }
+
+    .rate-layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    @media (max-width: 780px) {
+      .rate-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      padding: 20px;
+    }
+
+    .card-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 4px;
+    }
+
+    .card-subtitle {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+
+    /* Rescue List */
+    .rescue-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .rescue-item {
+      width: 100%;
+      text-align: left;
+      background: var(--bg-page);
+      border: 2px solid transparent;
+      border-radius: 12px;
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+      font-family: inherit;
+    }
+
+    .rescue-item:hover {
+      background: var(--aaa-blue-soft);
+      border-color: #C7D7F5;
+    }
+
+    .rescue-item.selected {
+      background: var(--aaa-blue-light);
+      border-color: var(--aaa-blue);
+    }
+
+    .rescue-item-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .rescue-id {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--aaa-blue);
+      letter-spacing: 0.02em;
+    }
+
+    .status-pill {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .status-completed {
+      background: var(--accent-green-bg);
+      color: var(--accent-green);
+    }
+
+    .status-enroute {
+      background: var(--accent-amber-bg);
+      color: var(--accent-amber);
+    }
+
+    .rescue-service {
+      font-size: 0.94rem;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .rescue-meta {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .rated-badge {
+      color: var(--star-gold);
+      font-weight: 700;
+      font-size: 0.8rem;
+    }
+
+    /* Rating Card */
+    .rescue-banner {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px;
+      background: var(--aaa-blue-soft);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 20px;
+    }
+
+    .driver-avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      border: 2px solid #FFFFFF;
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+      background: #E8F0FE;
+    }
+
+    .driver-avatar img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+    }
+
+    .banner-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .banner-title {
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .banner-sub {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .enroute-notice {
+      background: var(--accent-amber-bg);
+      color: var(--accent-amber);
+      border: 1px solid #FDE68A;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 0.85rem;
+      margin-bottom: 18px;
+      display: none;
+    }
+
+    .enroute-notice.visible {
+      display: block;
+    }
+
+    .rate-heading {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--aaa-blue-dark);
+      margin-bottom: 6px;
+      letter-spacing: -0.02em;
+    }
+
+    .rate-prompt {
+      font-size: 0.92rem;
+      color: var(--text-muted);
+      margin-bottom: 18px;
+    }
+
+    /* Star Rating */
+    .stars-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .star-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      line-height: 1;
+      transition: transform 0.12s ease;
+    }
+
+    .star-btn:hover {
+      transform: scale(1.14);
+    }
+
+    .star-btn svg {
+      width: 40px;
+      height: 40px;
+      fill: var(--star-empty);
+      transition: fill 0.12s ease;
+    }
+
+    .star-btn.filled svg,
+    .star-btn.hovered svg {
+      fill: var(--star-gold);
+    }
+
+    .star-label {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--aaa-blue);
+      min-height: 22px;
+      margin-bottom: 20px;
+    }
+
+    /* Tags */
+    .section-label {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 10px;
+    }
+
+    .tags-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .tag-btn {
+      background: var(--bg-page);
+      color: var(--text-main);
+      border: 1.5px solid var(--border);
+      border-radius: 999px;
+      padding: 8px 16px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s ease;
+    }
+
+    .tag-btn:hover {
+      border-color: var(--aaa-blue);
+      background: var(--aaa-blue-soft);
+    }
+
+    .tag-btn.selected {
+      background: var(--aaa-blue);
+      color: #FFFFFF;
+      border-color: var(--aaa-blue);
+    }
+
+    /* Comment Box */
+    .comment-box {
+      width: 100%;
+      min-height: 96px;
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-family: inherit;
+      font-size: 0.92rem;
+      color: var(--text-main);
+      resize: vertical;
+      margin-bottom: 18px;
+      transition: border-color 0.15s ease;
+    }
+
+    .comment-box:focus {
+      outline: none;
+      border-color: var(--aaa-blue);
+    }
+
+    .form-error {
+      color: #C5221F;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+      display: none;
+    }
+
+    .form-error.visible {
+      display: block;
+    }
+
+    .btn-primary {
+      background: var(--aaa-blue);
+      color: #FFFFFF;
+      border: none;
+      border-radius: 12px;
+      padding: 13px 22px;
+      font-size: 0.96rem;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-primary:hover {
+      background: var(--aaa-blue-dark);
+    }
+
+    .btn-secondary {
+      background: var(--aaa-blue-light);
+      color: var(--aaa-blue);
+      border: 1px solid #C7D7F5;
+      border-radius: 12px;
+      padding: 12px 20px;
+      font-size: 0.92rem;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.15s ease;
+    }
+
+    .btn-secondary:hover {
+      background: #DCE8FD;
+    }
+
+    /* Thank-you Screen */
+    .thanks-card {
+      max-width: 560px;
+      margin: 12px auto;
+      text-align: center;
+      padding: 36px 28px;
+    }
+
+    .thanks-icon {
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      background: var(--accent-green-bg);
+      color: var(--accent-green);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+
+    .thanks-title {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: var(--aaa-blue-dark);
+      margin-bottom: 8px;
+    }
+
+    .thanks-sub {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 22px;
+    }
+
+    .summary-box {
+      background: var(--bg-page);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: left;
+      margin-bottom: 24px;
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 6px 0;
+      font-size: 0.88rem;
+      border-bottom: 1px solid #E5E7EB;
+    }
+
+    .summary-row:last-child {
+      border-bottom: none;
+    }
+
+    .summary-key {
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .summary-val {
+      color: var(--text-main);
+      font-weight: 600;
+      text-align: right;
+    }
+
+    .thanks-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    /* Leaderboard Screen */
+    .leaderboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 12px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    .leaderboard-title {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--aaa-blue-dark);
+    }
+
+    .public-badge {
+      background: var(--accent-green-bg);
+      color: var(--accent-green);
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid #B7DFC2;
+    }
+
+    .leaderboard-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .leader-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 18px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .rank-badge {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: var(--bg-page);
+      color: var(--text-main);
+      font-weight: 800;
+      font-size: 0.92rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .rank-1 {
+      background: #FEF3C7;
+      color: #B45309;
+      border: 1.5px solid #F59E0B;
+    }
+
+    .rank-2 {
+      background: #F3F4F6;
+      color: #374151;
+      border: 1.5px solid #9CA3AF;
+    }
+
+    .rank-3 {
+      background: #FFEDD5;
+      color: #9A3412;
+      border: 1.5px solid #F97316;
+    }
+
+    .leader-photo {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      overflow: hidden;
+      flex-shrink: 0;
+      border: 2px solid var(--aaa-blue-light);
+      background: var(--aaa-blue-soft);
+    }
+
+    .leader-photo img {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .leader-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .leader-name {
+      font-size: 1.02rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .leader-meta {
+      font-size: 0.83rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .leader-tags {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+
+    .mini-tag {
+      font-size: 0.74rem;
+      font-weight: 600;
+      background: var(--aaa-blue-soft);
+      color: var(--aaa-blue);
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+
+    .leader-score {
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .avg-stars {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--aaa-blue-dark);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 4px;
+    }
+
+    .avg-stars span.star-glyph {
+      color: var(--star-gold);
+      font-size: 1.15rem;
+    }
+
+    .rating-count {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .proto-footer {
+      max-width: 960px;
+      margin: 0 auto 32px;
+      padding: 0 16px;
+      text-align: center;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="brand-badge">AAA</span>
+        <span>Rate My Rescue</span>
+      </div>
+      <nav class="nav-tabs" aria-label="Prototype screens">
+        <button class="nav-tab active" data-screen="rate" id="tab-rate">Rate a Rescue</button>
+        <button class="nav-tab" data-screen="leaderboard" id="tab-leaderboard">Top Drivers This Month</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- SCREEN 1: Rate a Rescue + Rescue List -->
+    <section id="screen-rate" class="screen active" aria-label="Rate a rescue">
+      <div class="rate-layout">
+        <aside class="card">
+          <h2 class="card-title">Your Rescues</h2>
+          <p class="card-subtitle">Pick any rescue to rate — including ones still en route.</p>
+          <div class="rescue-list" id="rescue-list"></div>
+        </aside>
+
+        <section class="card" aria-live="polite">
+          <div class="rescue-banner" id="active-rescue-banner">
+            <div class="driver-avatar" id="active-driver-photo"></div>
+            <div class="banner-info">
+              <div class="banner-title">
+                <span id="active-rescue-title">RSA-1042 · Battery Jump</span>
+                <span class="status-pill status-completed" id="active-status-pill">Completed</span>
+              </div>
+              <div class="banner-sub" id="active-rescue-sub">Driver: Marcus Vance · Today, 2:15 PM</div>
+            </div>
+          </div>
+
+          <div class="enroute-notice" id="enroute-notice">
+            <strong>Still en route:</strong> This rescue is currently in progress. You can still submit an early rating below.
+          </div>
+
+          <h1 class="rate-heading">How did we do?</h1>
+          <p class="rate-prompt">Tap a star rating and share what stood out.</p>
+
+          <form id="rating-form" novalidate>
+            <div class="stars-wrap" id="stars-wrap" role="radiogroup" aria-label="Star rating">
+              <button type="button" class="star-btn" data-value="1" aria-label="1 star">
+                <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              </button>
+              <button type="button" class="star-btn" data-value="2" aria-label="2 stars">
+                <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              </button>
+              <button type="button" class="star-btn" data-value="3" aria-label="3 stars">
+                <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              </button>
+              <button type="button" class="star-btn" data-value="4" aria-label="4 stars">
+                <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              </button>
+              <button type="button" class="star-btn" data-value="5" aria-label="5 stars">
+                <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              </button>
+            </div>
+            <div class="star-label" id="star-label">Select a rating (1–5 stars)</div>
+
+            <div class="section-label">What went well?</div>
+            <div class="tags-wrap" id="tags-wrap">
+              <button type="button" class="tag-btn" data-tag="On time">On time</button>
+              <button type="button" class="tag-btn" data-tag="Friendly driver">Friendly driver</button>
+              <button type="button" class="tag-btn" data-tag="Explained the fix">Explained the fix</button>
+            </div>
+
+            <label class="section-label" for="comment-input" style="display:block;">Comments</label>
+            <textarea
+              id="comment-input"
+              class="comment-box"
+              placeholder="Tell us about your rescue experience (optional)..."
+            ></textarea>
+
+            <div class="form-error" id="form-error">Please select at least 1 star before submitting.</div>
+
+            <button type="submit" class="btn-primary" id="submit-rating-btn">Submit Rating</button>
+          </form>
+        </section>
+      </div>
+    </section>
+
+    <!-- SCREEN 2: Thank-You Screen -->
+    <section id="screen-thanks" class="screen" aria-label="Thank you">
+      <div class="card thanks-card">
+        <div class="thanks-icon" aria-hidden="true">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </div>
+        <h1 class="thanks-title">Thank you for your feedback!</h1>
+        <p class="thanks-sub">Your rating helps recognize great drivers and improve roadside service.</p>
+
+        <div class="summary-box" id="thanks-summary">
+          <div class="summary-row">
+            <span class="summary-key">Rescue</span>
+            <span class="summary-val" id="sum-rescue">RSA-1042 · Battery Jump</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-key">Driver</span>
+            <span class="summary-val" id="sum-driver">Marcus Vance</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-key">Rating</span>
+            <span class="summary-val" id="sum-stars">5 / 5 ★</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-key">Highlights</span>
+            <span class="summary-val" id="sum-tags">On time, Friendly driver</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-key">Comment</span>
+            <span class="summary-val" id="sum-comment">—</span>
+          </div>
+        </div>
+
+        <div class="thanks-actions">
+          <button type="button" class="btn-secondary" id="btn-rate-another">Rate Another Rescue</button>
+          <button type="button" class="btn-primary" id="btn-view-leaderboard">Top Drivers This Month</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SCREEN 3: Public Leaderboard -->
+    <section id="screen-leaderboard" class="screen" aria-label="Top drivers this month">
+      <div class="card">
+        <div class="leaderboard-header">
+          <div>
+            <h1 class="leaderboard-title">Top drivers this month</h1>
+            <p class="card-subtitle" style="margin-bottom:0;">Highest-rated roadside assistance specialists based on member feedback.</p>
+          </div>
+          <span class="public-badge">Public Leaderboard</span>
+        </div>
+
+        <div class="leaderboard-list" id="leaderboard-list"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="proto-footer">
+    Static clickable prototype · Fake data only · No backend calls
+  </footer>
+
+  <script>
+    // Helper to build offline SVG portrait avatars (fake data, zero external requests)
+    function makeAvatar(initials, bgHex, shirtHex, hairHex, skinHex) {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+        <rect width="120" height="120" fill="${bgHex}"/>
+        <path d="M22 120c4-24 20-34 38-34s34 10 38 34z" fill="${shirtHex}"/>
+        <circle cx="60" cy="48" r="24" fill="${skinHex}"/>
+        <path d="M36 45c2-18 14-26 24-26 14 0 23 9 24 26-4-8-12-12-24-12s-19 4-24 12z" fill="${hairHex}"/>
+        <circle cx="51" cy="50" r="2.6" fill="#1F2937"/>
+        <circle cx="69" cy="50" r="2.6" fill="#1F2937"/>
+        <path d="M52 60c3 4 13 4 16 0" fill="none" stroke="#7C2D12" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>`;
+      return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
+    }
+
+    const drivers = [
+      {
+        id: "drv-1",
+        name: "Marcus Vance",
+        region: "Metro North · Flatbed #14",
+        photo: makeAvatar("MV", "#DBEAFE", "#0B3D91", "#1F2937", "#E0AC69"),
+        avgStars: 4.96,
+        ratingsCount: 84,
+        topTags: ["On time", "Friendly driver", "Explained the fix"]
+      },
+      {
+        id: "drv-2",
+        name: "Elena Rostova",
+        region: "Eastside · Service Van #08",
+        photo: makeAvatar("ER", "#FCE7F3", "#1E3A8A", "#78350F", "#F1C27D"),
+        avgStars: 4.93,
+        ratingsCount: 71,
+        topTags: ["Explained the fix", "Friendly driver"]
+      },
+      {
+        id: "drv-3",
+        name: "Devon Brooks",
+        region: "Downtown · Tow Truck #22",
+        photo: makeAvatar("DB", "#DCFCE7", "#0B3D91", "#111827", "#8D5524"),
+        avgStars: 4.89,
+        ratingsCount: 65,
+        topTags: ["On time", "Friendly driver"]
+      },
+      {
+        id: "drv-4",
+        name: "Priya Nair",
+        region: "West Valley · Battery Unit #05",
+        photo: makeAvatar("PN", "#FEF3C7", "#1D4ED8", "#1F2937", "#C68642"),
+        avgStars: 4.85,
+        ratingsCount: 59,
+        topTags: ["Explained the fix", "On time"]
+      },
+      {
+        id: "drv-5",
+        name: "Carlos Mendez",
+        region: "South Bay · Flatbed #19",
+        photo: makeAvatar("CM", "#E0E7FF", "#0B3D91", "#27272A", "#D2996C"),
+        avgStars: 4.81,
+        ratingsCount: 52,
+        topTags: ["Friendly driver", "On time"]
+      }
+    ];
+
+    const rescues = [
+      {
+        id: "RSA-1042",
+        service: "Battery Jump",
+        status: "Completed",
+        when: "Today, 2:15 PM",
+        driverId: "drv-1",
+        rating: null
+      },
+      {
+        id: "RSA-1045",
+        service: "Flat Tire Change",
+        status: "En route",
+        when: "ETA 12 mins",
+        driverId: "drv-2",
+        rating: null
+      },
+      {
+        id: "RSA-1038",
+        service: "Tow Service",
+        status: "Completed",
+        when: "Nov 14, 6:40 PM",
+        driverId: "drv-3",
+        rating: null
+      },
+      {
+        id: "RSA-1031",
+        service: "Lockout Assistance",
+        status: "Completed",
+        when: "Nov 10, 11:05 AM",
+        driverId: "drv-4",
+        rating: { stars: 5, tags: ["On time", "Friendly driver"], comment: "Unlocked in 5 minutes!" }
+      }
+    ];
+
+    const starLabels = {
+      1: "1 out of 5 — Needs improvement",
+      2: "2 out of 5 — Below expectations",
+      3: "3 out of 5 — Okay",
+      4: "4 out of 5 — Great service",
+      5: "5 out of 5 — Outstanding!"
+    };
+
+    let selectedRescueId = rescues[0].id;
+    let currentStars = 0;
+    let selectedTags = new Set();
+    let lastSubmitted = {
+      rescue: rescues[0],
+      driver: drivers[0],
+      stars: 5,
+      tags: ["On time", "Friendly driver"],
+      comment: "Super quick and helpful!"
+    };
+
+    function getDriver(driverId) {
+      return drivers.find(d => d.id === driverId) || drivers[0];
+    }
+
+    function showScreen(name) {
+      document.querySelectorAll(".screen").forEach(el => el.classList.remove("active"));
+      document.getElementById("screen-" + name).classList.add("active");
+
+      document.querySelectorAll(".nav-tab").forEach(tab => {
+        tab.classList.toggle("active", tab.dataset.screen === name);
+      });
+
+      if (name === "leaderboard") {
+        renderLeaderboard();
+      }
+      if (window.location.hash !== "#" + name) {
+        history.replaceState(null, "", "#" + name);
+      }
+    }
+
+    function renderRescueList() {
+      const container = document.getElementById("rescue-list");
+      container.innerHTML = "";
+      rescues.forEach(r => {
+        const drv = getDriver(r.driverId);
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "rescue-item" + (r.id === selectedRescueId ? " selected" : "");
+        const statusClass = r.status === "Completed" ? "status-completed" : "status-enroute";
+        const ratedHtml = r.rating
+          ? `<span class="rated-badge">★ ${r.rating.stars}/5 rated</span>`
+          : `<span>Tap to rate</span>`;
+
+        btn.innerHTML = `
+          <div class="rescue-item-top">
+            <span class="rescue-id">${r.id}</span>
+            <span class="status-pill ${statusClass}">${r.status}</span>
+          </div>
+          <div class="rescue-service">${r.service}</div>
+          <div class="rescue-meta">
+            <span>${drv.name} · ${r.when}</span>
+            ${ratedHtml}
+          </div>
+        `;
+        btn.addEventListener("click", () => selectRescue(r.id));
+        container.appendChild(btn);
+      });
+    }
+
+    function selectRescue(rescueId) {
+      selectedRescueId = rescueId;
+      const r = rescues.find(item => item.id === rescueId);
+      const drv = getDriver(r.driverId);
+
+      document.getElementById("active-driver-photo").innerHTML =
+        `<img src="${drv.photo}" alt="${drv.name}" />`;
+      document.getElementById("active-rescue-title").textContent = `${r.id} · ${r.service}`;
+
+      const pill = document.getElementById("active-status-pill");
+      pill.textContent = r.status;
+      pill.className = "status-pill " + (r.status === "Completed" ? "status-completed" : "status-enroute");
+
+      document.getElementById("active-rescue-sub").textContent = `Driver: ${drv.name} · ${r.when}`;
+
+      const notice = document.getElementById("enroute-notice");
+      notice.classList.toggle("visible", r.status !== "Completed");
+
+      // Load existing rating if already rated, otherwise reset form
+      if (r.rating) {
+        currentStars = r.rating.stars;
+        selectedTags = new Set(r.rating.tags);
+        document.getElementById("comment-input").value = r.rating.comment || "";
+      } else {
+        currentStars = 0;
+        selectedTags = new Set();
+        document.getElementById("comment-input").value = "";
+      }
+
+      document.getElementById("form-error").classList.remove("visible");
+      updateStarsUI();
+      updateTagsUI();
+      renderRescueList();
+    }
+
+    function updateStarsUI(hoverVal = 0) {
+      const displayVal = hoverVal || currentStars;
+      document.querySelectorAll("#stars-wrap .star-btn").forEach(btn => {
+        const val = Number(btn.dataset.value);
+        btn.classList.toggle("filled", val <= currentStars);
+        btn.classList.toggle("hovered", hoverVal > 0 && val <= hoverVal);
+      });
+      document.getElementById("star-label").textContent =
+        displayVal > 0 ? starLabels[displayVal] : "Select a rating (1–5 stars)";
+    }
+
+    function updateTagsUI() {
+      document.querySelectorAll("#tags-wrap .tag-btn").forEach(btn => {
+        btn.classList.toggle("selected", selectedTags.has(btn.dataset.tag));
+      });
+    }
+
+    function renderThanks() {
+      const { rescue, driver, stars, tags, comment } = lastSubmitted;
+      document.getElementById("sum-rescue").textContent = `${rescue.id} · ${rescue.service} (${rescue.status})`;
+      document.getElementById("sum-driver").textContent = driver.name;
+      document.getElementById("sum-stars").textContent = `${stars} / 5 ★`;
+      document.getElementById("sum-tags").textContent = tags.length ? tags.join(", ") : "None selected";
+      document.getElementById("sum-comment").textContent = comment || "—";
+    }
+
+    function renderLeaderboard() {
+      const sorted = [...drivers].sort((a, b) => b.avgStars - a.avgStars);
+      const list = document.getElementById("leaderboard-list");
+      list.innerHTML = "";
+      sorted.forEach((drv, idx) => {
+        const rank = idx + 1;
+        const rankClass = rank <= 3 ? `rank-${rank}` : "";
+        const tagsHtml = drv.topTags.map(t => `<span class="mini-tag">${t}</span>`).join("");
+        const row = document.createElement("div");
+        row.className = "leader-row";
+        row.innerHTML = `
+          <div class="rank-badge ${rankClass}">#${rank}</div>
+          <div class="leader-photo">
+            <img src="${drv.photo}" alt="${drv.name}" />
+          </div>
+          <div class="leader-info">
+            <div class="leader-name">${drv.name}</div>
+            <div class="leader-meta">${drv.region}</div>
+            <div class="leader-tags">${tagsHtml}</div>
+          </div>
+          <div class="leader-score">
+            <div class="avg-stars"><span class="star-glyph">★</span> ${drv.avgStars.toFixed(2)}</div>
+            <div class="rating-count">${drv.ratingsCount} ratings</div>
+          </div>
+        `;
+        list.appendChild(row);
+      });
+    }
+
+    // Event bindings
+    document.querySelectorAll(".nav-tab").forEach(tab => {
+      tab.addEventListener("click", () => showScreen(tab.dataset.screen));
+    });
+
+    document.querySelectorAll("#stars-wrap .star-btn").forEach(btn => {
+      const val = Number(btn.dataset.value);
+      btn.addEventListener("mouseenter", () => updateStarsUI(val));
+      btn.addEventListener("mouseleave", () => updateStarsUI(0));
+      btn.addEventListener("click", () => {
+        currentStars = val;
+        document.getElementById("form-error").classList.remove("visible");
+        updateStarsUI();
+      });
+    });
+
+    document.querySelectorAll("#tags-wrap .tag-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const tag = btn.dataset.tag;
+        if (selectedTags.has(tag)) {
+          selectedTags.delete(tag);
+        } else {
+          selectedTags.add(tag);
+        }
+        updateTagsUI();
+      });
+    });
+
+    document.getElementById("rating-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      if (currentStars === 0) {
+        document.getElementById("form-error").classList.add("visible");
+        return;
+      }
+
+      const rescue = rescues.find(r => r.id === selectedRescueId);
+      const driver = getDriver(rescue.driverId);
+      const tags = Array.from(selectedTags);
+      const comment = document.getElementById("comment-input").value.trim();
+
+      // Save in memory (no backend calls)
+      const isNewRating = !rescue.rating;
+      rescue.rating = { stars: currentStars, tags, comment };
+
+      if (isNewRating) {
+        const totalScore = driver.avgStars * driver.ratingsCount + currentStars;
+        driver.ratingsCount += 1;
+        driver.avgStars = totalScore / driver.ratingsCount;
+      }
+
+      lastSubmitted = { rescue, driver, stars: currentStars, tags, comment };
+      renderRescueList();
+      renderThanks();
+      showScreen("thanks");
+    });
+
+    document.getElementById("btn-rate-another").addEventListener("click", () => {
+      showScreen("rate");
+    });
+
+    document.getElementById("btn-view-leaderboard").addEventListener("click", () => {
+      showScreen("leaderboard");
+    });
+
+    // Init
+    selectRescue(selectedRescueId);
+    renderLeaderboard();
+
+    // Support direct hash navigation (#rate, #thanks, #leaderboard)
+    const initialHash = window.location.hash.replace("#", "");
+    if (["rate", "thanks", "leaderboard"].includes(initialHash)) {
+      if (initialHash === "thanks") {
+        renderThanks();
+      }
+      showScreen(initialHash);
+    }
+  </script>
+</body>
+</html>
