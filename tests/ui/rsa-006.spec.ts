@@ -35,17 +35,22 @@ test('rate completed rescue and block en-route rescues', { tag: '@RSA-006-AC10' 
   const enRouteId = await createRequestInStatus(request, 'en_route', 'Elena Rostova');
 
   await signIn(page, 'alice');
-  await page.goto(`/rate?id=${completedId}`);
+  await page.goto('/rate');
+  await page.getByTestId(`rescue-item-${completedId}`).click();
 
   await expect(page.getByRole('heading', { name: 'How did we do?' })).toBeVisible();
-  await expect(page.getByRole('button', { name: '1 star' })).toBeVisible();
-  await expect(page.getByRole('button', { name: '5 stars' })).toBeVisible();
+  for (const label of ['1 star', '2 stars', '3 stars', '4 stars', '5 stars']) {
+    await expect(page.getByRole('button', { name: label })).toBeVisible();
+  }
   await expect(page.getByRole('button', { name: 'On time' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Friendly driver' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Explained the fix' })).toBeVisible();
   await expect(page.getByLabel('Comments')).toBeVisible();
 
   await expect(page.getByTestId(`rescue-item-${enRouteId}`)).toContainText('Not yet completed');
+  await page.goto(`/rate?id=${enRouteId}`);
+  await expect(page.getByText('You can rate a rescue once it is completed.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Submit Rating' })).toHaveCount(0);
 });
 
 test('submitting rating shows thank-you screen', { tag: '@RSA-006-AC11' }, async ({ page, request }) => {
@@ -61,9 +66,13 @@ test('submitting rating shows thank-you screen', { tag: '@RSA-006-AC11' }, async
   await page.getByRole('button', { name: 'Submit Rating' }).click();
 
   await expect(page.getByRole('heading', { name: 'Thank you for your feedback!' })).toBeVisible();
-  await expect(page.getByTestId('thanks-summary')).toContainText(completedId);
-  await expect(page.getByTestId('thanks-summary')).toContainText('5 / 5');
-  await expect(page.getByTestId('thanks-summary')).toContainText('On time');
+  const summary = page.getByTestId('thanks-summary');
+  await expect(summary).toContainText(completedId);
+  await expect(summary).toContainText('Marcus Vance');
+  await expect(summary).toContainText('5 / 5');
+  await expect(summary).toContainText('On time');
+  await expect(summary).toContainText('Explained the fix');
+  await expect(summary).toContainText('Super quick and helpful!');
   await expect(page.getByRole('link', { name: 'Rate Another Rescue' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Top Drivers This Month' })).toBeVisible();
 });
@@ -74,6 +83,11 @@ test('public leaderboard shows top drivers this month', { tag: '@RSA-006-AC12' }
   await expect(page.getByRole('heading', { name: 'Top drivers this month' })).toBeVisible();
   const list = page.getByTestId('leaderboard-list');
   await expect(list).toBeVisible();
-  await expect(list.locator('.leader-row').first()).toBeVisible();
-  await expect(list.locator('.leader-row img').first()).toBeVisible();
+  const firstRow = list.locator('.leader-row').first();
+  await expect(firstRow).toBeVisible();
+  await expect(firstRow.locator('img')).toBeVisible();
+  await expect(firstRow).toContainText('Marcus Vance');
+  await expect(firstRow).toContainText('★');
+  await expect(firstRow).toContainText('ratings');
+  await expect(firstRow.locator('.mini-tag').first()).toBeVisible();
 });

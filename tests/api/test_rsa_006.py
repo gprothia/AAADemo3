@@ -72,17 +72,22 @@ def test_rating_validation(as_user, new_request):
 
 
 @pytest.mark.ac("RSA-006-AC3")
-def test_rating_requires_completed(as_user, new_request):
+@pytest.mark.parametrize("status", ["received", "assigned", "en_route", "arrived", "cancelled"])
+def test_rating_requires_completed(as_user, new_request, status):
     req = new_request("alice")
+    dana = as_user("dana")
+    if status in ("assigned", "en_route", "arrived"):
+        dana.patch(f"/v1/requests/{req['id']}", json={"status": "assigned", "driver_name": "Marcus Vance"})
+        if status in ("en_route", "arrived"):
+            dana.patch(f"/v1/requests/{req['id']}", json={"status": "en_route"})
+        if status == "arrived":
+            dana.patch(f"/v1/requests/{req['id']}", json={"status": "arrived"})
+    elif status == "cancelled":
+        as_user("alice").post(f"/v1/requests/{req['id']}/cancel")
+
     r = as_user("alice").post(f"/v1/requests/{req['id']}/rating", json={"stars": 5})
     assert r.status_code == 409
     assert r.json()["code"] == "RATING_NOT_ALLOWED"
-
-    as_user("dana").patch(f"/v1/requests/{req['id']}", json={"status": "assigned"})
-    as_user("dana").patch(f"/v1/requests/{req['id']}", json={"status": "en_route"})
-    r2 = as_user("alice").post(f"/v1/requests/{req['id']}/rating", json={"stars": 4})
-    assert r2.status_code == 409
-    assert r2.json()["code"] == "RATING_NOT_ALLOWED"
 
 
 @pytest.mark.ac("RSA-006-AC4")
@@ -124,6 +129,10 @@ def test_rating_other_member_returns_404(as_user):
     assert r.status_code == 404
     assert r.json()["code"] == "REQUEST_NOT_FOUND"
 
+    r_missing = as_user("alice").post("/v1/requests/RSA-9999/rating", json={"stars": 5})
+    assert r_missing.status_code == 404
+    assert r_missing.json()["code"] == "REQUEST_NOT_FOUND"
+
 
 @pytest.mark.ac("RSA-006-AC8")
 def test_rating_audit_event(as_user, new_request):
@@ -143,19 +152,41 @@ def test_rating_audit_event(as_user, new_request):
     assert rows[0]["actor"] == "alice"
     assert rows[0]["target"] == req["id"]
     assert rows[0]["stars"] == 5
+    assert rows[0]["tags"] == ["Friendly driver"]
+
+
+@pytest.mark.ac("RSA-006-AC8")
+@pytest.mark.needs_test_hooks
+def test_rating_audit_includes_tags_and_excludes_comment(api, as_user, new_request):
+    req = new_request("alice")
+    _complete_request(as_user, req["id"])
+    private_comment = "Confidential feedback text"
+    r = as_user("alice").post(
+        f"/v1/requests/{req['id']}/rating",
+        json={"stars": 5, "tags": ["On time"], "comment": private_comment},
+    )
+    assert r.status_code == 201
+
+    events = as_user("dana").get("/v1/audit", params={"event": "rating.created", "target": req["id"]}).json()
+    assert events and events[0]["tags"] == ["On time"]
+    assert "comment" not in events[0]
+
+    logs = api.get("/test/logs", params={"limit": 50}).json()
+    assert all(private_comment not in str(line) for line in logs)
 
 
 @pytest.mark.ac("RSA-006-AC9")
-def test_leaderboard_public(api):
-    r = api.get("/v1/drivers/leaderboard")
-    assert r.status_code == 200
-    rows = r.json()
-    assert isinstance(rows, list)
-    assert 1 <= len(rows) <= 10
-    scores = [row["avg_stars"] for row in rows]
-    assert scores == sorted(scores, reverse=True)
-    for row in rows:
-        assert row["driver_name"]
-        assert row["photo_url"]
-        assert isinstance(row["ratings_count"], int) and row["ratings_count"] > 0
-        assert isinstance(row["top_tags"], list)
+def test_leaderboard_public(api, as_user):
+    for client in (api, as_user("alice"), as_user("dana")):
+        r = client.get("/v1/drivers/leaderboard")
+        assert r.status_code == 200
+        rows = r.json()
+        assert isinstance(rows, list)
+        assert 1 <= len(rows) <= 10
+        scores = [row["avg_stars"] for row in rows]
+        assert scores == sorted(scores, reverse=True)
+        for row in rows:
+            assert row["driver_name"]
+            assert row["photo_url"]
+            assert isinstance(row["ratings_count"], int) and row["ratings_count"] > 0
+            assert isinstance(row["top_tags"], list)
