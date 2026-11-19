@@ -1,7 +1,7 @@
 ---
 id: RSA-007
 title: Sample seed data
-status: approved
+status: implemented
 owner: "@gprothia"
 issue: "#13"
 ---
