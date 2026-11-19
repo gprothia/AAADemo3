@@ -493,7 +493,7 @@ def seed() -> None:
         {
             "request_id": "RSA-1003",
             "driver_name": "Sam",
-            "stars": 5,
+            "stars": 4,
             "tags": ["On time", "Friendly driver"],
             "comment": "Arrived quickly and handled the tow smoothly.",
             "created_at": ts,

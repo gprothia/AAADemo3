@@ -90,7 +90,7 @@ error_rate_pct: 1.0
 |---|---|---|---|---|---|
 | `RSA-1001` | `bob` | `battery` | `assigned` | `Sam (Truck 12)` | No |
 | `RSA-1002` | `alice` | `flat_tyre` | `en_route` | `Maria (Truck 07)` | No |
-| `RSA-1003` | `alice` | `tow` | `completed` | `Sam (Truck 12)` | Yes (5 stars) |
+| `RSA-1003` | `alice` | `tow` | `completed` | `Sam (Truck 12)` | Yes (4 stars) |
 | `RSA-1004` | `bob` | `lockout` | `received` | — | No |
 | `RSA-1005` | `alice` | `fuel` | `arrived` | `Maria (Truck 07)` | No |
 | `RSA-1006` | `bob` | `tow` | `completed` | `Maria (Truck 07)` | Yes (4 stars) |
