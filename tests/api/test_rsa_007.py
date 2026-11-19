@@ -22,7 +22,9 @@ def test_dana_sees_all_seeded_requests_types_and_statuses(as_user):
     seeded = [rows[rid] for rid in expected_ids]
     assert {"alice", "bob"} <= {row["member"] for row in seeded}
     assert {"tow", "battery", "flat_tyre", "lockout", "fuel"} <= {row["type"] for row in seeded}
-    assert {"received", "assigned", "en_route", "arrived", "completed", "cancelled"} <= {row["status"] for row in seeded}
+    assert {"received", "assigned", "en_route", "arrived", "completed", "cancelled"} <= {
+        row["status"] for row in seeded
+    }
 
 
 @pytest.mark.ac("RSA-007-AC3")
