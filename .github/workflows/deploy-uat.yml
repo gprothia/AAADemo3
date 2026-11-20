@@ -71,6 +71,7 @@ jobs:
             --min-instances 0 --max-instances 1 \
             --set-env-vars "SEED_TEST_DATA=true,ENABLE_TEST_HOOKS=false" \
             --labels "env=uat,app=aaademo3,commit=${SHA:0:7}" --quiet
+          gcloud run services update-traffic "$API_SERVICE" --region "$REGION" --to-latest --quiet
           api_url=$(gcloud run services describe "$API_SERVICE" --region "$REGION" --format='value(status.url)')
           echo "API_URL=$api_url" >> "$GITHUB_ENV"
           # Who may call the private API: the website, and this pipeline (for smoke tests).
@@ -86,6 +87,7 @@ jobs:
             --min-instances 0 --max-instances 2 \
             --set-env-vars "API_URL=$API_URL,API_AUDIENCE=$API_URL" \
             --labels "env=uat,app=aaademo3,commit=${SHA:0:7}" --quiet
+          gcloud run services update-traffic "$WEB_SERVICE" --region "$REGION" --to-latest --quiet
 
       - name: UAT URLs
         id: urls
