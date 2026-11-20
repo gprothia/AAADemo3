@@ -9,10 +9,10 @@ test('alice sees her seeded requests across statuses', { tag: '@RSA-007-AC5' }, 
   await expect(page.getByRole('heading', { name: 'My requests' })).toBeVisible();
 
   for (const id of ['RSA-1002', 'RSA-1003', 'RSA-1005']) {
-    await expect(table.getByRole('link', { name: id })).toHaveCount(1);
+    await expect(table.getByRole('link', { name: id, exact: true })).toHaveCount(1);
   }
   for (const id of ['RSA-1001', 'RSA-1004', 'RSA-1006', 'RSA-1007']) {
-    await expect(table.getByRole('link', { name: id })).toHaveCount(0);
+    await expect(table.getByRole('link', { name: id, exact: true })).toHaveCount(0);
   }
 });
 
@@ -23,6 +23,6 @@ test('dana sees seeded requests for all members and statuses', { tag: '@RSA-007-
   await expect(page.getByRole('heading', { name: 'All requests' })).toBeVisible();
 
   for (const id of ['RSA-1001', 'RSA-1002', 'RSA-1003', 'RSA-1004', 'RSA-1005', 'RSA-1006', 'RSA-1007']) {
-    await expect(table.getByRole('link', { name: id })).toHaveCount(1);
+    await expect(table.getByRole('link', { name: id, exact: true })).toHaveCount(1);
   }
 });
